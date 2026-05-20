@@ -148,11 +148,32 @@ export default function App() {
   
   // Database configuration
   const [firebaseConfigMode, setFirebaseConfigMode] = useState<"demo" | "cloud">("demo");
-  const [configKeys, setConfigKeys] = useState({
-    projectId: "",
-    apiKey: "",
-    authDomain: "",
-    appId: ""
+  const [configKeys, setConfigKeys] = useState<{
+    projectId: string;
+    apiKey: string;
+    authDomain: string;
+    appId: string;
+  }>(() => {
+    const env = (import.meta as any).env || {};
+    const envProjectId = env.VITE_FIREBASE_PROJECT_ID || "";
+    const envApiKey = env.VITE_FIREBASE_API_KEY || "";
+    const envAuthDomain = env.VITE_FIREBASE_AUTH_DOMAIN || "";
+    const envAppId = env.VITE_FIREBASE_APP_ID || "";
+
+    if (envProjectId && envApiKey) {
+      return {
+        projectId: envProjectId,
+        apiKey: envApiKey,
+        authDomain: envAuthDomain,
+        appId: envAppId
+      };
+    }
+    return {
+      projectId: "",
+      apiKey: "",
+      authDomain: "",
+      appId: ""
+    };
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [firestoreInstance, setFirestoreInstance] = useState<any>(null);
@@ -236,7 +257,7 @@ export default function App() {
   const [connectionStatusMsg, setConnectionStatusMsg] = useState<{
     type: "success" | "error" | "info";
     text: string;
-  }>({ type: "info", text: "Running in Local Demo Mode. Data is persisted in your web browser." });
+  }>({ type: "info", text: "Running in Standard Local Mode. Data is persisted securely in your web browser." });
 
   // Add Task Forms state
   const [newTask, setNewTask] = useState({
@@ -352,17 +373,33 @@ export default function App() {
 
   // Load Firestore configurations initially
   useEffect(() => {
-    const savedKeys = localStorage.getItem("handover_firebase_keys");
+    const env = (import.meta as any).env || {};
+    const envProjectId = env.VITE_FIREBASE_PROJECT_ID;
+    const envApiKey = env.VITE_FIREBASE_API_KEY;
+    const envAuthDomain = env.VITE_FIREBASE_AUTH_DOMAIN || "";
+    const envAppId = env.VITE_FIREBASE_APP_ID || "";
 
-    if (savedKeys) {
-      try {
-        const parsed = JSON.parse(savedKeys);
-        if (parsed.projectId && parsed.apiKey) {
-          setConfigKeys(parsed);
-          initializeFirebaseSync(parsed);
+    if (envProjectId && envApiKey) {
+      const keys = {
+        projectId: envProjectId,
+        apiKey: envApiKey,
+        authDomain: envAuthDomain,
+        appId: envAppId
+      };
+      setConfigKeys(keys);
+      initializeFirebaseSync(keys);
+    } else {
+      const savedKeys = localStorage.getItem("handover_firebase_keys");
+      if (savedKeys) {
+        try {
+          const parsed = JSON.parse(savedKeys);
+          if (parsed.projectId && parsed.apiKey) {
+            setConfigKeys(parsed);
+            initializeFirebaseSync(parsed);
+          }
+        } catch (e) {
+          console.error("Error reading saved localStorage keys", e);
         }
-      } catch (e) {
-        console.error("Error reading saved localStorage keys", e);
       }
     }
   }, []);
@@ -973,9 +1010,9 @@ export default function App() {
       };
     } else {
       return {
-        label: "Demo Mode",
-        badgeStyle: "bg-gray-100 text-gray-700 border border-gray-300",
-        textStyle: "text-gray-600"
+        label: "Standard Local",
+        badgeStyle: "bg-slate-100 text-slate-700 border border-slate-300",
+        textStyle: "text-slate-600"
       };
     }
   };
@@ -1077,9 +1114,9 @@ export default function App() {
                   Team Handover & Task Backlog
                 </h1>
                 <span className={`px-2 py-0.5 text-xs font-mono font-semibold rounded-full ${
-                  firebaseConfigMode === "cloud" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                  firebaseConfigMode === "cloud" ? "bg-emerald-100 text-emerald-800" : "bg-indigo-100 text-indigo-800"
                 }`}>
-                  {firebaseConfigMode === "cloud" ? "Live Cloud Sync" : "Local Demo"}
+                  {firebaseConfigMode === "cloud" ? "Live Cloud Sync" : "Standard Local"}
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-mono">
@@ -1364,9 +1401,9 @@ export default function App() {
                     </p>
                   </div>
                   <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-tighter ${
-                    firebaseConfigMode === "cloud" ? "bg-emerald-100 text-emerald-800" : "bg-yellow-100 text-yellow-850"
+                    firebaseConfigMode === "cloud" ? "bg-emerald-100 text-emerald-800" : "bg-indigo-100 text-indigo-800"
                   }`}>
-                    {firebaseConfigMode === "cloud" ? "Live Cloud Sync" : "Local Demo Mode"}
+                    {firebaseConfigMode === "cloud" ? "Live Cloud Sync" : "Standard Local Mode"}
                   </span>
                 </div>
 
@@ -1443,29 +1480,8 @@ export default function App() {
                 <div className="pt-2 text-[11px] text-slate-500 border-t border-[#E2E8F0] flex items-center justify-between">
                   <span className="inline-flex items-center gap-1 font-mono">
                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 inline-block"></span>
-                    Stored locally in browser state.
+                    Active database configurations are managed securely.
                   </span>
-                  
-                  {firebaseConfigMode === "demo" && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setConfigKeys({
-                          projectId: "demo-project-id",
-                          apiKey: "demo-api-key-value-12345",
-                          authDomain: "demo-project.firebaseapp.com",
-                          appId: "1:12345:web:54321"
-                        });
-                        setConnectionStatusMsg({
-                          type: "info",
-                          text: "Form filled with fake demo credentials. Push connect to activate!"
-                        });
-                      }}
-                      className="text-xs text-indigo-600 hover:underline font-semibold cursor-pointer"
-                    >
-                      Fill Fake Credentials
-                    </button>
-                  )}
                 </div>
 
                 {connectionStatusMsg.text && (
