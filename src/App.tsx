@@ -113,6 +113,7 @@ const DEFAULT_WORKSPACE_STATE: HandoverState = {
 };
 
 export default function App() {
+  const isEnvConfigured = !!(((import.meta as any).env || {}).VITE_FIREBASE_PROJECT_ID);
   // App state
   const [dbState, setDbState] = useState<HandoverState>(DEFAULT_WORKSPACE_STATE);
 
@@ -1270,7 +1271,7 @@ export default function App() {
               )}
             </div>
           </div>
-          {firebaseConfigMode === "cloud" && (
+          {firebaseConfigMode === "cloud" && !isEnvConfigured && (
             <button
               onClick={handleDisconnectFirebase}
               className="px-2 py-1 bg-white hover:bg-slate-50 text-rose-600 border border-rose-200 hover:border-rose-300 text-xs rounded transition-colors"
@@ -1407,75 +1408,100 @@ export default function App() {
                   </span>
                 </div>
 
-                <form onSubmit={handleConnectFirebase} className="space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono">Project ID <span className="text-rose-500">*</span></label>
-                      <input
-                        type="text"
-                        placeholder="project-x-42"
-                        value={configKeys.projectId}
-                        onChange={(e) => setConfigKeys({ ...configKeys, projectId: e.target.value })}
-                        className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono"
-                        required
-                      />
+                {isEnvConfigured ? (
+                  <div className="bg-indigo-50/70 border border-indigo-200 rounded-lg p-5 space-y-3.5 shadow-2xs">
+                    <div className="flex items-center gap-2 text-indigo-950 font-bold text-xs font-mono uppercase tracking-wider">
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                      </span>
+                      <span>Production Live Cloud Sync Active</span>
                     </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono">API Key <span className="text-rose-500">*</span></label>
-                      <input
-                        type="password"
-                        placeholder="AIzaSyD-fake-key"
-                        value={configKeys.apiKey}
-                        onChange={(e) => setConfigKeys({ ...configKeys, apiKey: e.target.value })}
-                        className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono"
-                        required
-                      />
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      This system has been successfully promoted to Live Production. It connects automatically to your centralized Cloud Firestore cluster. All rosters, tasks, items, logs, and workspaces synchronize instantly across all devices. No manual setup is required.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200/60 font-mono text-[10px]">
+                      <div>
+                        <span className="block font-bold text-slate-400">PROJECT ID:</span>
+                        <span className="text-slate-705 font-bold tracking-tight text-slate-800">{configKeys.projectId}</span>
+                      </div>
+                      <div>
+                        <span className="block font-bold text-slate-400">ACCESS PROTOCOL:</span>
+                        <span className="font-bold text-indigo-700">Enterprise Direct Link</span>
+                      </div>
                     </div>
                   </div>
+                ) : (
+                  <form onSubmit={handleConnectFirebase} className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono">Project ID <span className="text-rose-500">*</span></label>
+                        <input
+                          type="text"
+                          placeholder="project-x-42"
+                          value={configKeys.projectId}
+                          onChange={(e) => setConfigKeys({ ...configKeys, projectId: e.target.value })}
+                          className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono"
+                          required
+                        />
+                      </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono">Auth Domain</label>
-                      <input
-                        type="text"
-                        placeholder="app.firebaseapp.com"
-                        value={configKeys.authDomain}
-                        onChange={(e) => setConfigKeys({ ...configKeys, authDomain: e.target.value })}
-                        className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono"
-                      />
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono">API Key <span className="text-rose-500">*</span></label>
+                        <input
+                          type="password"
+                          placeholder="AIzaSyD-fake-key"
+                          value={configKeys.apiKey}
+                          onChange={(e) => setConfigKeys({ ...configKeys, apiKey: e.target.value })}
+                          className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono"
+                          required
+                        />
+                      </div>
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono">App ID</label>
-                      <input
-                        type="text"
-                        placeholder="1:2345:web:abc"
-                        value={configKeys.appId}
-                        onChange={(e) => setConfigKeys({ ...configKeys, appId: e.target.value })}
-                        className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono"
-                      />
-                    </div>
-                  </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono">Auth Domain</label>
+                        <input
+                          type="text"
+                          placeholder="app.firebaseapp.com"
+                          value={configKeys.authDomain}
+                          onChange={(e) => setConfigKeys({ ...configKeys, authDomain: e.target.value })}
+                          className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono"
+                        />
+                      </div>
 
-                  <div className="flex items-center gap-2 pt-2">
-                    <button
-                      type="submit"
-                      className="flex-1 bg-indigo-650 hover:bg-indigo-700 bg-indigo-600 text-white text-xs font-bold py-2 px-4 rounded transition-colors cursor-pointer"
-                    >
-                      Connect to Firebase Cloud
-                    </button>
-                    {firebaseConfigMode === "cloud" && (
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono">App ID</label>
+                        <input
+                          type="text"
+                          placeholder="1:2345:web:abc"
+                          value={configKeys.appId}
+                          onChange={(e) => setConfigKeys({ ...configKeys, appId: e.target.value })}
+                          className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2">
                       <button
-                        type="button"
-                        onClick={handleDisconnectFirebase}
-                        className="bg-white hover:bg-slate-50 text-rose-600 border border-rose-200 hover:border-rose-300 text-xs rounded py-2 px-4 transition-colors cursor-pointer"
+                        type="submit"
+                        className="flex-1 bg-indigo-650 hover:bg-indigo-700 bg-indigo-600 text-white text-xs font-bold py-2 px-4 rounded transition-colors cursor-pointer"
                       >
-                        Disconnect Cloud
+                        Connect to Firebase Cloud
                       </button>
-                    )}
-                  </div>
-                </form>
+                      {firebaseConfigMode === "cloud" && (
+                        <button
+                          type="button"
+                          onClick={handleDisconnectFirebase}
+                          className="bg-white hover:bg-slate-50 text-rose-600 border border-rose-200 hover:border-rose-300 text-xs rounded py-2 px-4 transition-colors cursor-pointer"
+                        >
+                          Disconnect Cloud
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                )}
 
                 <div className="pt-2 text-[11px] text-slate-500 border-t border-[#E2E8F0] flex items-center justify-between">
                   <span className="inline-flex items-center gap-1 font-mono">
