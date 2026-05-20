@@ -430,10 +430,23 @@ export default function App() {
               if (parsed.projectId && parsed.apiKey) {
                 setConfigKeys(parsed);
                 initializeFirebaseSync(parsed);
+              } else {
+                throw new Error("Invalid keys in localStorage");
               }
             } catch (e) {
               console.error("Error reading saved localStorage keys", e);
+              setConnectionStatusMsg({
+                type: "error",
+                text: "No Firebase configuration detected. Please enter your Firebase config keys in the Settings panel below to connect."
+              });
+              setIsSettingsOpen(true);
             }
+          } else {
+            setConnectionStatusMsg({
+              type: "error",
+              text: "No Firebase configuration detected. Please enter your Firebase config keys in the Settings panel below to connect."
+            });
+            setIsSettingsOpen(true);
           }
         }
       });
