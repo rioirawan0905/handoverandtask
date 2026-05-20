@@ -122,6 +122,14 @@ export default function App() {
   const [newWorkspaceInputName, setNewWorkspaceInputName] = useState("");
   const [workspaceCreateError, setWorkspaceCreateError] = useState("");
 
+  // Delete confirmation modal state
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    isOpen: boolean;
+    type: "task" | "backlog" | "workspace" | "person";
+    id: string;
+    name: string;
+  } | null>(null);
+
   // Multi-workspace management state
   const [currentSelectedWorkspaceId, setCurrentSelectedWorkspaceId] = useState<string>(() => {
     return localStorage.getItem("handover_active_workspace_id") || "currentWorkspace";
@@ -745,6 +753,27 @@ export default function App() {
     addNotification(`Handover workspace "${wsName}" deleted successfully.`, "success");
   };
 
+  const confirmDelete = () => {
+    if (!deleteConfirmation) return;
+    const { type, id, name } = deleteConfirmation;
+    setDeleteConfirmation(null);
+
+    switch (type) {
+      case "workspace":
+        handleDeleteWorkspace(id);
+        break;
+      case "task":
+        handleDeleteTask(id);
+        break;
+      case "backlog":
+        handleDeleteBacklog(id);
+        break;
+      case "person":
+        handleRemovePersonnel(id, name);
+        break;
+    }
+  };
+
   const handleConnectFirebase = (e: React.FormEvent) => {
     e.preventDefault();
     if (!configKeys.projectId || !configKeys.apiKey) {
@@ -1102,6 +1131,61 @@ export default function App() {
           </form>
         </div>
       )}
+
+      {/* Delete Warning Confirmation Modal */}
+      {deleteConfirmation?.isOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 transition-all duration-200">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-200 text-left">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-rose-50 text-rose-600 rounded-lg">
+                <AlertTriangle className="w-6 h-6 shrink-0" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-bold text-slate-900 font-display text-base">
+                  Delete {deleteConfirmation.type === "workspace" ? "Handover Space" : 
+                          deleteConfirmation.type === "task" ? "Active Task" : 
+                          deleteConfirmation.type === "backlog" ? "Backlog Task" : "Roster Entry"}?
+                </h3>
+                <p className="text-xs text-slate-500 font-mono">
+                  Target: <span className="text-slate-800 font-bold">{deleteConfirmation.name}</span>
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-100">
+              {deleteConfirmation.type === "workspace" && (
+                "Warning: This will permanently delete the selected handover workspace and all associated tasks, checklist states, roster allocations, and chronological logs. This process represents an irreversible purge, removing all traces from Local Storage and connected Live Firebase instances."
+              )}
+              {deleteConfirmation.type === "task" && (
+                "Are you sure you want to remove this active tracking task? Other team members will lose visibility of this item."
+              )}
+              {deleteConfirmation.type === "backlog" && (
+                "Are you sure you want to remove this item from the backlog queue?"
+              )}
+              {deleteConfirmation.type === "person" && (
+                "This will remove the selected operator from the global personnel roster references."
+              )}
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmation(null)}
+                className="px-3.5 py-1.5 border border-slate-200 hover:bg-slate-50 rounded text-slate-600 text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded text-xs shadow-xs transition-colors cursor-pointer"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Dynamic Navigation/Info Header */}
       <header className="border-b border-rose-100 bg-white/85 sticky top-0 backdrop-blur z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
@@ -1144,7 +1228,15 @@ export default function App() {
               {currentSelectedWorkspaceId !== "currentWorkspace" && (
                 <button
                   type="button"
-                  onClick={() => handleDeleteWorkspace(currentSelectedWorkspaceId)}
+                  onClick={() => {
+                    const wsName = workspaces.find(w => w.id === currentSelectedWorkspaceId)?.name || currentSelectedWorkspaceId;
+                    setDeleteConfirmation({
+                      isOpen: true,
+                      type: "workspace",
+                      id: currentSelectedWorkspaceId,
+                      name: wsName
+                    });
+                  }}
                   className="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded transition-colors cursor-pointer"
                   title="Delete current handover space"
                 >
@@ -1378,7 +1470,12 @@ export default function App() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => handleRemovePersonnel(p.id, p.name)}
+                          onClick={() => setDeleteConfirmation({
+                            isOpen: true,
+                            type: "person",
+                            id: p.id,
+                            name: p.name
+                          })}
                           className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
                           title="Delete Personnel"
                         >
@@ -1778,7 +1875,12 @@ export default function App() {
 
                               <td className="p-3 text-center">
                                 <button
-                                  onClick={() => handleDeleteTask(task.id)}
+                                  onClick={() => setDeleteConfirmation({
+                                    isOpen: true,
+                                    type: "task",
+                                    id: task.id,
+                                    name: task.description
+                                  })}
                                   className="text-slate-350 hover:text-rose-600 hover:bg-rose-50 p-1 rounded transition-colors"
                                   title="Remove Task"
                                 >
@@ -1991,7 +2093,12 @@ export default function App() {
                                     </button>
                                   )}
                                   <button
-                                    onClick={() => handleDeleteBacklog(item.id)}
+                                    onClick={() => setDeleteConfirmation({
+                                      isOpen: true,
+                                      type: "backlog",
+                                      id: item.id,
+                                      name: item.description
+                                    })}
                                     className="text-slate-350 hover:text-rose-600 hover:bg-rose-50 p-1 rounded font-semibold text-xs inline-block cursor-pointer"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
