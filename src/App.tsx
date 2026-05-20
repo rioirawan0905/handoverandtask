@@ -112,7 +112,144 @@ const DEFAULT_WORKSPACE_STATE: HandoverState = {
   latestLog: ""
 };
 
+export const PALETTE_THEMES = [
+  {
+    id: "steel-slate",
+    name: "Steel Slate",
+    description: "Modern enterprise slate-gray with deep indigo accents",
+    isDark: false,
+    bodyBg: "bg-slate-50/50",
+    bodyText: "text-slate-800",
+    cardBg: "bg-white",
+    cardBorder: "border-slate-200",
+    cardTitleText: "text-slate-900",
+    cardSubText: "text-slate-500",
+    mutedBg: "bg-slate-50",
+    primaryBtn: "bg-indigo-600 hover:bg-indigo-700 text-white focus:ring-indigo-300",
+    accentText: "text-indigo-650",
+    accentBg: "bg-indigo-50/50",
+    accentBorder: "border-indigo-100",
+    activeRibbonBg: "bg-indigo-900 border-indigo-950 text-white",
+    activeRibbonText: "text-white",
+    activeRibbonMutedText: "text-indigo-200",
+    activeRibbonSubText: "text-indigo-300",
+    activeRibbonMiddle: "bg-indigo-950/40 border-indigo-800",
+    activeRibbonBubble: "bg-indigo-950/60 text-indigo-300 border-indigo-800/80",
+    successAlertBg: "bg-emerald-50 text-emerald-800 border-emerald-100",
+    infoAlertBg: "bg-indigo-50 text-indigo-850 border-indigo-100",
+    warningAlertBg: "bg-amber-50 text-amber-800 border-amber-100",
+    metaText: "text-slate-400",
+    divideColor: "divide-slate-200",
+    inputBg: "bg-white text-slate-800 border-slate-200",
+    thBg: "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100/80",
+    analyticsDarkAccent: "#4f46e5",
+  },
+  {
+    id: "alpine-forest",
+    name: "Alpine Forest",
+    description: "Crisp timberland & spruce tones, comfortable organic style",
+    isDark: false,
+    bodyBg: "bg-stone-50",
+    bodyText: "text-stone-800",
+    cardBg: "bg-white",
+    cardBorder: "border-stone-200",
+    cardTitleText: "text-stone-900",
+    cardSubText: "text-stone-500",
+    mutedBg: "bg-stone-50",
+    primaryBtn: "bg-emerald-700 hover:bg-emerald-800 text-white focus:ring-emerald-400",
+    accentText: "text-emerald-700",
+    accentBg: "bg-emerald-50/50",
+    accentBorder: "border-emerald-150",
+    activeRibbonBg: "bg-emerald-800 border-emerald-950 text-white",
+    activeRibbonText: "text-white",
+    activeRibbonMutedText: "text-emerald-150",
+    activeRibbonSubText: "text-emerald-300",
+    activeRibbonMiddle: "bg-emerald-900/50 border-emerald-750",
+    activeRibbonBubble: "bg-emerald-950/60 text-emerald-300 border-emerald-750/80",
+    successAlertBg: "bg-emerald-50 text-emerald-850 border-emerald-150",
+    infoAlertBg: "bg-teal-50 text-teal-850 border-teal-150",
+    warningAlertBg: "bg-amber-50 text-amber-800 border-amber-150",
+    metaText: "text-stone-400",
+    divideColor: "divide-stone-200",
+    inputBg: "bg-white text-stone-800 border-stone-200",
+    thBg: "bg-stone-50 text-stone-500 border-stone-200 hover:bg-stone-100",
+    analyticsDarkAccent: "#047857",
+  },
+  {
+    id: "deep-oceanic",
+    name: "Deep Oceanic",
+    description: "High-contrast maritime palette with navy text and ocean accents",
+    isDark: false,
+    bodyBg: "bg-[#F0F4F8]",
+    bodyText: "text-slate-800",
+    cardBg: "bg-white",
+    cardBorder: "border-slate-200",
+    cardTitleText: "text-blue-950",
+    cardSubText: "text-slate-500",
+    mutedBg: "bg-[#E6EDF5]/40",
+    primaryBtn: "bg-blue-700 hover:bg-blue-800 text-white focus:ring-blue-400",
+    accentText: "text-blue-700",
+    accentBg: "bg-blue-50/70",
+    accentBorder: "border-blue-150",
+    activeRibbonBg: "bg-blue-900 border-blue-950 text-white",
+    activeRibbonText: "text-white",
+    activeRibbonMutedText: "text-blue-200",
+    activeRibbonSubText: "text-blue-300",
+    activeRibbonMiddle: "bg-blue-950/45 border-blue-800",
+    activeRibbonBubble: "bg-blue-950/70 text-blue-300 border-blue-800/80",
+    successAlertBg: "bg-emerald-50 text-emerald-800 border-emerald-100",
+    infoAlertBg: "bg-blue-50 text-blue-850 border-blue-100",
+    warningAlertBg: "bg-amber-50 text-amber-800 border-amber-100",
+    metaText: "text-slate-400",
+    divideColor: "divide-slate-200",
+    inputBg: "bg-white text-slate-800 border-slate-200",
+    thBg: "bg-slate-100/50 text-slate-505 border-slate-200 hover:bg-slate-100",
+    analyticsDarkAccent: "#1d4ed8",
+  },
+  {
+    id: "charcoal-tech",
+    name: "Charcoal Tech",
+    description: "Low-glare deep dark theme with electric cyan lights & rich contrast",
+    isDark: true,
+    bodyBg: "bg-[#0B0F19]",
+    bodyText: "text-slate-200",
+    cardBg: "bg-[#161E2E]",
+    cardBorder: "border-slate-800",
+    cardTitleText: "text-[#F8FAFC]",
+    cardSubText: "text-slate-400",
+    mutedBg: "bg-[#1F2937]/70",
+    primaryBtn: "bg-indigo-650 hover:bg-indigo-600 text-white focus:ring-indigo-700",
+    accentText: "text-[#38BDF8]",
+    accentBg: "bg-slate-900/50",
+    accentBorder: "border-slate-850",
+    activeRibbonBg: "bg-[#0F172A] border hover:border-indigo-900/40 border-slate-800 text-slate-200",
+    activeRibbonText: "text-slate-100",
+    activeRibbonMutedText: "text-slate-400",
+    activeRibbonSubText: "text-indigo-400",
+    activeRibbonMiddle: "bg-[#161E2E] border-slate-800/80",
+    activeRibbonBubble: "bg-[#0B0F19] text-[#38BDF8] border-slate-800",
+    successAlertBg: "bg-emerald-950/50 text-emerald-200 border-emerald-950/40",
+    infoAlertBg: "bg-[#1F2937]/50 text-slate-200 border-slate-850",
+    warningAlertBg: "bg-amber-955/40 text-amber-200 border-amber-950/40",
+    metaText: "text-slate-500",
+    divideColor: "divide-slate-800",
+    inputBg: "bg-[#1F2937] text-slate-100 border-slate-700 focus:ring-indigo-500",
+    thBg: "bg-[#1E293B]/60 text-slate-300 border-slate-800 hover:bg-slate-800",
+    analyticsDarkAccent: "#38bdf8",
+  }
+];
+
 export default function App() {
+  const [selectedThemeId, setSelectedThemeId] = useState<string>(() => {
+    return localStorage.getItem("handover_dashboard_theme") || "steel-slate";
+  });
+
+  const activeTheme = PALETTE_THEMES.find(t => t.id === selectedThemeId) || PALETTE_THEMES[0];
+
+  useEffect(() => {
+    localStorage.setItem("handover_dashboard_theme", selectedThemeId);
+  }, [selectedThemeId]);
+
   const [isEnvConfigured, setIsEnvConfigured] = useState(false);
   // App state
   const [dbState, setDbState] = useState<HandoverState>(DEFAULT_WORKSPACE_STATE);
@@ -186,6 +323,13 @@ export default function App() {
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [firestoreInstance, setFirestoreInstance] = useState<any>(null);
+
+  // Sorting state for Active Tasks and Backlog Tasks
+  const [tasksSortField, setTasksSortField] = useState<"completed" | "description" | "ownerName" | "priority" | "dueDate" | null>(null);
+  const [tasksSortDirection, setTasksSortDirection] = useState<"asc" | "desc">("asc");
+
+  const [backlogSortField, setBacklogSortField] = useState<"completed" | "description" | "ownerName" | "priority" | "backlogDate" | null>(null);
+  const [backlogSortDirection, setBacklogSortDirection] = useState<"asc" | "desc">("asc");
   
   // Global Personnel references
   const [globalPersonnel, setGlobalPersonnel] = useState<PersonnelItem[]>(() => {
@@ -795,6 +939,116 @@ export default function App() {
     initializeFirebaseSync(configKeys);
   };
 
+  const handleDisconnectFirebase = () => {
+    localStorage.removeItem("handover_firebase_keys");
+    setIsEnvConfigured(false);
+    setFirebaseConfigMode("demo");
+    setFirestoreInstance(null);
+    setConfigKeys({
+      projectId: "",
+      apiKey: "",
+      authDomain: "",
+      appId: ""
+    });
+    setConnectionStatusMsg({
+      type: "info",
+      text: "Database cloud integration terminated. Reverted to local session state."
+    });
+    addNotification("Disconnected from Firebase Cloud Sync. Offline/Local mode is active.", "info");
+    setIsSettingsOpen(true);
+  };
+
+  const handleTasksSort = (field: "completed" | "description" | "ownerName" | "priority" | "dueDate") => {
+    if (tasksSortField === field) {
+      if (tasksSortDirection === "asc") {
+        setTasksSortDirection("desc");
+      } else {
+        setTasksSortField(null);
+      }
+    } else {
+      setTasksSortField(field);
+      setTasksSortDirection("asc");
+    }
+  };
+
+  const handleBacklogSort = (field: "completed" | "description" | "ownerName" | "priority" | "backlogDate") => {
+    if (backlogSortField === field) {
+      if (backlogSortDirection === "asc") {
+        setBacklogSortDirection("desc");
+      } else {
+        setBacklogSortField(null);
+      }
+    } else {
+      setBacklogSortField(field);
+      setBacklogSortDirection("asc");
+    }
+  };
+
+  const getSortedTasks = () => {
+    if (!tasksSortField) return dbState.tasks;
+    return [...dbState.tasks].sort((a, b) => {
+      let valA = a[tasksSortField];
+      let valB = b[tasksSortField];
+
+      if (tasksSortField === "priority") {
+        const priorityWeights = { High: 3, Medium: 2, Low: 1 };
+        valA = priorityWeights[a.priority] || 0;
+        valB = priorityWeights[b.priority] || 0;
+      } else if (typeof valA === "boolean") {
+        valA = valA ? 1 : 0;
+        valB = valB ? 1 : 0;
+      } else if (typeof valA === "string" && typeof valB === "string") {
+        return tasksSortDirection === "asc"
+          ? valA.localeCompare(valB)
+          : valB.localeCompare(valA);
+      }
+
+      if (valA < valB) return tasksSortDirection === "asc" ? -1 : 1;
+      if (valA > valB) return tasksSortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const getSortedBacklog = () => {
+    if (!backlogSortField) return dbState.backlog;
+    return [...dbState.backlog].sort((a, b) => {
+      let valA = a[backlogSortField];
+      let valB = b[backlogSortField];
+
+      if (backlogSortField === "priority") {
+        const priorityWeights = { High: 3, Medium: 2, Low: 1 };
+        valA = priorityWeights[a.priority] || 0;
+        valB = priorityWeights[b.priority] || 0;
+      } else if (typeof valA === "boolean") {
+        valA = valA ? 1 : 0;
+        valB = valB ? 1 : 0;
+      } else if (typeof valA === "string" && typeof valB === "string") {
+        return backlogSortDirection === "asc"
+          ? valA.localeCompare(valB)
+          : valB.localeCompare(valA);
+      }
+
+      if (valA < valB) return backlogSortDirection === "asc" ? -1 : 1;
+      if (valA > valB) return backlogSortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const renderSortIcon = (
+    field: string,
+    currentField: string | null,
+    direction: "asc" | "desc"
+  ) => {
+    if (currentField !== field) {
+      return <span className="opacity-30 text-[10px] ml-1">↕</span>;
+    }
+    return direction === "asc" ? (
+      <span className="text-indigo-650 text-xs font-bold font-sans ml-1 text-center">▲</span>
+    ) : (
+      <span className="text-indigo-650 text-xs font-bold font-sans ml-1 text-center">▼</span>
+    );
+  };
+
   // Helper: dynamic calculation of days difference
   const calculateDaysRemaining = (dateString: string) => {
     const targetDate = new Date(dateString);
@@ -1362,14 +1616,14 @@ export default function App() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pl-2">
+            <div className={`grid grid-cols-1 lg:grid-cols-12 gap-6 pl-2 ${activeTheme.isDark ? 'text-slate-250' : 'text-slate-800'}`}>
               {/* Left Column: Personnel Roster Management */}
-              <div className="lg:col-span-5 space-y-4 border-b border-slate-200 pb-6 lg:border-b-0 lg:pb-0 lg:border-r lg:border-slate-200 lg:pr-6 text-left">
+              <div className={`lg:col-span-4 space-y-4 border-b lg:border-b-0 pb-6 lg:pb-0 lg:border-r ${activeTheme.isDark ? 'border-slate-800' : 'border-slate-200'} lg:pr-6 text-left`}>
                 <div>
-                  <h3 className="text-xs uppercase tracking-wider font-extrabold text-slate-705 text-indigo-950 font-mono flex items-center gap-1">
+                  <h3 className={`text-xs uppercase tracking-wider font-extrabold ${activeTheme.cardTitleText} font-mono flex items-center gap-1`}>
                     <span>👥</span> Add / Manage Personnel
                   </h3>
-                  <p className="text-[11px] text-slate-500 leading-normal mt-1">
+                  <p className={`text-[11px] ${activeTheme.cardSubText} leading-normal mt-1`}>
                     Add active drilling operators, superintendents, or offshore engineers. These roster members are used to assign task owners and shift transitions.
                   </p>
                 </div>
@@ -1386,182 +1640,257 @@ export default function App() {
                       form.reset();
                     }
                   }} 
-                  className="space-y-3 bg-white p-3 border border-slate-200 rounded-lg shadow-3xs"
+                  className={`space-y-3 ${activeTheme.mutedBg} p-3 border ${activeTheme.cardBorder} rounded-lg shadow-3xs`}
                 >
                   <div className="space-y-1">
-                    <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono block">
+                    <label className={`text-[9px] uppercase font-bold tracking-wider ${activeTheme.cardSubText} font-mono block`}>
                       Full Name
                     </label>
                     <input
                       name="personName"
                       type="text"
                       placeholder="e.g., David Kim"
-                      className="bg-white border border-[#E2E8F0] rounded px-2.5 py-1 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full"
+                      className={`${activeTheme.inputBg} border rounded px-2.5 py-1 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full shadow-xs`}
                       required
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono block">
+                    <label className={`text-[9px] uppercase font-bold tracking-wider ${activeTheme.cardSubText} font-mono block`}>
                       Title / Role Spec
                     </label>
                     <input
                       name="personTitle"
                       type="text"
                       placeholder="e.g., Night Superintendent"
-                      className="bg-white border border-[#E2E8F0] rounded px-2.5 py-1 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full"
+                      className={`${activeTheme.inputBg} border rounded px-2.5 py-1 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full shadow-xs`}
                       required
                     />
                   </div>
 
                   <button
                     type="submit"
-                    className="w-full bg-indigo-650 hover:bg-indigo-700 bg-indigo-600 text-white text-[11px] font-bold py-1.5 px-3 rounded transition-colors cursor-pointer"
+                    className={`w-full ${activeTheme.primaryBtn} text-[11px] font-bold py-1.5 px-3 rounded transition-colors cursor-pointer`}
                   >
                     + Add to Roster
                   </button>
                 </form>
 
                 {/* Personnel List */}
-                <div className="space-y-1.5">
-                  <span className="text-[9px] uppercase font-extrabold tracking-wider text-slate-400 font-mono block">
+                <div className="space-y-1.5 flex flex-col">
+                  <span className={`text-[9px] uppercase font-extrabold tracking-wider ${activeTheme.cardSubText} font-mono block`}>
                     Active Roster ({personnelList.length})
                   </span>
                   <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
-                    {personnelList.map((p) => (
-                      <div 
-                        key={p.id} 
-                        className="flex items-center justify-between text-xs p-2 bg-white border border-slate-100 rounded-md shadow-3xs hover:bg-slate-50/55 transition-colors"
-                      >
-                        <div className="text-left">
-                          <p className="font-semibold text-slate-800">{p.name}</p>
-                          <p className="text-[10px] text-slate-400 font-medium">{p.title}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteConfirmation({
-                            isOpen: true,
-                            type: "person",
-                            id: p.id,
-                            name: p.name
-                          })}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
-                          title="Delete Personnel"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                    {personnelList.length === 0 ? (
+                      <div className={`p-4 text-center rounded border ${activeTheme.cardBorder} text-[10px] ${activeTheme.cardSubText}`}>
+                        No engineers registered. Add personnel above.
                       </div>
-                    ))}
+                    ) : (
+                      personnelList.map((p) => (
+                        <div 
+                          key={p.id} 
+                          className={`flex items-center justify-between text-xs p-2 ${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-md shadow-3xs hover:opacity-90 transition-opacity`}
+                        >
+                          <div className="text-left">
+                            <p className={`font-semibold ${activeTheme.cardTitleText}`}>{p.name}</p>
+                            <p className={`text-[10px] ${activeTheme.cardSubText} font-medium`}>{p.title}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirmation({
+                              isOpen: true,
+                              type: "person",
+                              id: p.id,
+                              name: p.name
+                            })}
+                            className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50/10 cursor-pointer"
+                            title="Delete Personnel"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Middle Column: Visual Theme Selector */}
+              <div className={`lg:col-span-4 space-y-4 border-b lg:border-b-0 pb-6 lg:pb-0 lg:border-r ${activeTheme.isDark ? 'border-slate-800' : 'border-slate-200'} lg:pr-6 text-left`}>
+                <div>
+                  <h3 className={`text-xs uppercase tracking-wider font-extrabold ${activeTheme.cardTitleText} font-mono flex items-center gap-1`}>
+                    <span>🎨</span> Paint & Styling Themes
+                  </h3>
+                  <p className={`text-[11px] ${activeTheme.cardSubText} leading-normal mt-1`}>
+                    Switch between highly polished themes with secure, readable contrast ratios and modern professional colors.
+                  </p>
+                </div>
+
+                <div className="space-y-2 mt-2">
+                  <label className={`text-[9px] uppercase font-bold tracking-wider ${activeTheme.cardSubText} font-mono block`}>
+                    Active Workspace Palette
+                  </label>
+                  <div className="grid grid-cols-1 gap-2.5 max-h-[310px] overflow-y-auto pr-1">
+                    {PALETTE_THEMES.map((theme) => {
+                      const isSelected = selectedThemeId === theme.id;
+                      return (
+                        <button
+                          key={theme.id}
+                          type="button"
+                          onClick={() => setSelectedThemeId(theme.id)}
+                          className={`w-full text-left p-2.5 rounded-lg border text-xs cursor-pointer transition-all ${
+                            isSelected 
+                              ? `${theme.mutedBg} shadow-2xs` 
+                              : `${theme.cardBg}`
+                          } ${
+                            theme.isDark 
+                              ? 'bg-[#1e293b]/75 border-slate-700/80 text-white' 
+                              : 'bg-white border-slate-200/85 text-slate-800'
+                          } ${
+                            isSelected 
+                              ? 'ring-2 ring-indigo-500' 
+                              : 'hover:scale-[1.01]'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold font-sans flex items-center gap-1.5">
+                              {isSelected ? "●" : "○"} {theme.name}
+                            </span>
+                            <div className="flex gap-1.5">
+                              <span className={`w-3.5 h-3.5 rounded-full inline-block ${theme.bodyBg} border border-slate-300`}></span>
+                              <span className={`w-3.5 h-3.5 rounded-full inline-block ${theme.activeRibbonBg} border border-slate-350`}></span>
+                            </div>
+                          </div>
+                          <p className="text-[10px] opacity-75 mt-0.5 leading-tight">{theme.description}</p>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
 
               {/* Right Column: Database Configuration */}
-              <div className="lg:col-span-7 space-y-4 text-left">
+              <div className="lg:col-span-4 space-y-4 text-left">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h3 className="text-xs uppercase tracking-wider font-extrabold text-indigo-950 font-mono flex items-center gap-1">
+                    <h3 className={`text-xs uppercase tracking-wider font-extrabold ${activeTheme.cardTitleText} font-mono flex items-center gap-1`}>
                       <span>🔌</span> Firebase Database Connection
                     </h3>
-                    <p className="text-[11px] text-slate-500 leading-normal mt-1">
-                      Link your workspace to a Google Cloud Firestore instance. All rotation checks, checklists, tasks, and historical entries will synchronize in real-time across users.
+                    <p className={`text-[11px] ${activeTheme.cardSubText} leading-normal mt-1`}>
+                      Link your workspace to a Google Cloud Firestore instance. All rotation checks, checklists, tasks, and historical entries sync in real-time.
                     </p>
                   </div>
-                  <span className="px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-tighter bg-emerald-100 text-emerald-800">
-                    Live Cloud Sync
-                  </span>
                 </div>
 
                 {isEnvConfigured ? (
-                  <div className="bg-indigo-50/70 border border-indigo-200 rounded-lg p-5 space-y-3.5 shadow-2xs">
-                    <div className="flex items-center gap-2 text-indigo-950 font-bold text-xs font-mono uppercase tracking-wider">
+                  <div className={`${activeTheme.isDark ? 'bg-slate-900 border-slate-800' : 'bg-indigo-50/70 border border-indigo-200'} rounded-lg p-5 space-y-3.5 shadow-2xs`}>
+                    <div className={`flex items-center gap-2 ${activeTheme.cardTitleText} font-bold text-xs font-mono uppercase tracking-wider`}>
                       <span className="relative flex h-2.5 w-2.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                       </span>
-                      <span>Production Live Cloud Sync Active</span>
+                      <span>Cloud Sync Active</span>
                     </div>
-                    <p className="text-slate-600 text-[11px] leading-relaxed">
-                      This system has been successfully promoted to Live Production. It connects automatically to your centralized Cloud Firestore cluster. All rosters, tasks, items, logs, and workspaces synchronize instantly across all devices. No manual setup is required.
+                    <p className={`text-[11px] leading-relaxed ${activeTheme.cardSubText}`}>
+                      This system connects automatically to your centralized Cloud Firestore cluster for continuous, cross-device updates.
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200/60 font-mono text-[10px]">
+                    <div className="grid grid-cols-1 gap-2 pt-2 border-t border-slate-200/60 font-mono text-[10px]">
                       <div>
                         <span className="block font-bold text-slate-400">PROJECT ID:</span>
-                        <span className="text-slate-705 font-bold tracking-tight text-slate-800">{configKeys.projectId}</span>
+                        <span className={`font-bold tracking-tight ${activeTheme.cardTitleText}`}>{configKeys.projectId}</span>
                       </div>
                       <div>
                         <span className="block font-bold text-slate-400">ACCESS PROTOCOL:</span>
-                        <span className="font-bold text-indigo-700">Enterprise Direct Link</span>
+                        <span className={`font-bold ${activeTheme.accentText}`}>Enterprise Direct Link</span>
                       </div>
+                    </div>
+                    <div className={`pt-2.5 border-t ${activeTheme.cardBorder} flex justify-end`}>
+                      <button
+                        type="button"
+                        onClick={handleDisconnectFirebase}
+                        className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold py-1.5 px-3 rounded transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                      >
+                        Disconnect from Cloud
+                      </button>
                     </div>
                   </div>
                 ) : (
                   <form onSubmit={handleConnectFirebase} className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3">
                       <div className="flex flex-col gap-1">
-                        <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono">Project ID <span className="text-rose-500">*</span></label>
+                        <label className={`text-[9px] uppercase font-bold tracking-wider ${activeTheme.cardSubText} font-mono`}>Project ID <span className="text-rose-500">*</span></label>
                         <input
                           type="text"
                           placeholder="project-x-42"
                           value={configKeys.projectId}
                           onChange={(e) => setConfigKeys({ ...configKeys, projectId: e.target.value })}
-                          className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono"
+                          className={`${activeTheme.inputBg} border rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono shadow-xs`}
                           required
                         />
                       </div>
 
                       <div className="flex flex-col gap-1">
-                        <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono">API Key <span className="text-rose-500">*</span></label>
+                        <label className={`text-[9px] uppercase font-bold tracking-wider ${activeTheme.cardSubText} font-mono`}>API Key <span className="text-rose-500">*</span></label>
                         <input
                           type="password"
                           placeholder="AIzaSyD-fake-key"
                           value={configKeys.apiKey}
                           onChange={(e) => setConfigKeys({ ...configKeys, apiKey: e.target.value })}
-                          className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono"
+                          className={`${activeTheme.inputBg} border rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono shadow-xs`}
                           required
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1">
-                        <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono">Auth Domain</label>
+                        <label className={`text-[9px] uppercase font-bold tracking-wider ${activeTheme.cardSubText} font-mono`}>Auth Domain</label>
                         <input
                           type="text"
                           placeholder="app.firebaseapp.com"
                           value={configKeys.authDomain}
                           onChange={(e) => setConfigKeys({ ...configKeys, authDomain: e.target.value })}
-                          className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono"
+                          className={`${activeTheme.inputBg} border rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono shadow-xs`}
                         />
                       </div>
 
                       <div className="flex flex-col gap-1">
-                        <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono">App ID</label>
+                        <label className={`text-[9px] uppercase font-bold tracking-wider ${activeTheme.cardSubText} font-mono`}>App ID</label>
                         <input
                           type="text"
                           placeholder="1:2345:web:abc"
                           value={configKeys.appId}
                           onChange={(e) => setConfigKeys({ ...configKeys, appId: e.target.value })}
-                          className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono"
+                          className={`${activeTheme.inputBg} border rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono shadow-xs`}
                         />
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2">
+                    <div className="flex items-center gap-2 pt-1">
                       <button
                         type="submit"
-                        className="flex-1 bg-indigo-650 hover:bg-indigo-700 bg-indigo-600 text-white text-xs font-bold py-2 px-4 rounded transition-colors cursor-pointer"
+                        className={`flex-1 ${activeTheme.primaryBtn} text-xs font-bold py-2 px-4 rounded transition-colors cursor-pointer`}
                       >
                         Connect to Firebase Cloud
                       </button>
+                      {firebaseConfigMode === "cloud" && (
+                        <button
+                          type="button"
+                          onClick={handleDisconnectFirebase}
+                          className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded transition-colors cursor-pointer shadow-3xs"
+                        >
+                          Disconnect
+                        </button>
+                      )}
                     </div>
                   </form>
                 )}
 
-                <div className="pt-2 text-[11px] text-slate-500 border-t border-[#E2E8F0] flex items-center justify-between">
+                <div className={`pt-2 text-[11px] ${activeTheme.cardSubText} border-t ${activeTheme.cardBorder} flex items-center justify-between`}>
                   <span className="inline-flex items-center gap-1 font-mono">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 inline-block"></span>
-                    Active database configurations are managed securely.
+                    <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.id === 'alpine-forest' ? 'bg-emerald-600' : 'bg-indigo-600'} inline-block`}></span>
+                    Database configurations are managed client-side.
                   </span>
                 </div>
 
@@ -1583,27 +1912,27 @@ export default function App() {
         )}
 
         {/* 2. Header & Active Rotation Ribbon */}
-        <section className="bg-indigo-900 border border-indigo-950 rounded-xl p-6 shadow-md text-white">
+        <section className={`${activeTheme.activeRibbonBg} border rounded-xl p-6 shadow-md transition-all`}>
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-6">
             
             {/* Left Box: Active state description */}
             <div className="space-y-1">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-indigo-300 font-mono">
+              <span className={`text-[10px] uppercase tracking-wider font-bold ${activeTheme.activeRibbonSubText} font-mono`}>
                 ACTIVE ROTATION SHIFT INTERVAL
               </span>
-              <h2 className="text-lg font-bold font-display text-white">
+              <h2 className={`text-lg font-bold font-display ${activeTheme.activeRibbonText}`}>
                 Rotational Handover Interval
               </h2>
-              <div className="text-xs text-indigo-150 flex items-center gap-1">
+              <div className={`text-xs ${activeTheme.activeRibbonMutedText} flex items-center gap-1`}>
                 <span>Active Cycle Boundary: </span>
-                <span className="font-mono bg-indigo-950/50 px-1.5 py-0.5 rounded border border-indigo-800 font-medium text-indigo-300">
+                <span className={`font-mono ${activeTheme.activeRibbonMiddle} px-1.5 py-0.5 rounded border font-medium text-xs`}>
                   {CURRENT_DATE_STR} 13:13:56 UTC
                 </span>
               </div>
             </div>
 
             {/* Middle: Active Shift Rotation flow */}
-            <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-4 bg-indigo-950/40 border border-indigo-800 rounded-lg p-4 max-w-2xl">
+            <div className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-4 ${activeTheme.activeRibbonMiddle} border rounded-lg p-4 max-w-2xl`}>
               
               {/* Outgoing Outbox */}
               <div className="flex-1 w-full text-center space-y-1.5">
@@ -1611,13 +1940,13 @@ export default function App() {
                   Outgoing Shift Lead
                 </span>
                 <div className="flex items-center justify-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold flex items-center justify-center border border-rose-500/30">
+                  <div className="w-8 h-8 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold flex items-center justify-center border border-rose-500/30 shrink-0">
                     {getInitials(dbState.outgoingLead)}
                   </div>
                   <select
                     value={dbState.outgoingLead}
                     onChange={(e) => updateWorkspaceState((prev) => ({ ...prev, outgoingLead: e.target.value }))}
-                    className="text-xs sm:text-sm font-semibold text-white bg-indigo-950/80 hover:bg-indigo-900 focus:bg-indigo-950 border border-indigo-700/80 focus:border-white focus:outline-none rounded px-2.5 py-1.5 max-w-[210px] text-center font-display cursor-pointer"
+                    className={`text-xs sm:text-sm font-semibold text-white bg-slate-900/40 hover:bg-slate-900/60 focus:bg-slate-900/80 border ${activeTheme.isDark ? 'border-slate-700' : 'border-white/20'} focus:border-white focus:outline-none rounded px-2.5 py-1.5 max-w-[210px] text-center font-display cursor-pointer`}
                   >
                     <option value="" className="text-slate-800 bg-white">Select Outgoing Lead</option>
                     {personnelList.map(p => (
@@ -1631,23 +1960,23 @@ export default function App() {
 
               {/* Transit Arrow Icon */}
               <div className="shrink-0 flex flex-col items-center">
-                <ArrowRight className="w-5 h-5 text-indigo-300 animate-bounce" />
-                <span className="text-[9px] text-indigo-400 font-mono">Transfer</span>
+                <ArrowRight className={`w-5 h-5 ${activeTheme.activeRibbonSubText} animate-bounce`} />
+                <span className={`text-[9px] ${activeTheme.activeRibbonMutedText} font-mono`}>Transfer</span>
               </div>
 
               {/* Incoming Counterpart */}
               <div className="flex-1 w-full text-center space-y-1.5">
-                <span className="text-[9px] uppercase tracking-wider font-semibold text-indigo-300 font-mono bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/30">
+                <span className={`text-[9px] uppercase tracking-wider font-semibold ${activeTheme.activeRibbonSubText} font-mono bg-[#3b82f6]/10 px-2 py-0.5 rounded-full border border-[#3b82f6]/30`}>
                   Incoming Counterpart
                 </span>
                 <div className="flex items-center justify-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-bold flex items-center justify-center border border-indigo-500/30">
+                  <div className={`w-8 h-8 rounded-full ${activeTheme.activeRibbonBubble} text-xs font-bold flex items-center justify-center border shrink-0`}>
                     {getInitials(dbState.incomingLead)}
                   </div>
                   <select
                     value={dbState.incomingLead}
                     onChange={(e) => updateWorkspaceState((prev) => ({ ...prev, incomingLead: e.target.value }))}
-                    className="text-xs sm:text-sm font-semibold text-white bg-indigo-950/80 hover:bg-indigo-900 focus:bg-indigo-950 border border-indigo-700/80 focus:border-white focus:outline-none rounded px-2.5 py-1.5 max-w-[210px] text-center font-display cursor-pointer"
+                    className={`text-xs sm:text-sm font-semibold text-white bg-slate-900/40 hover:bg-slate-900/60 focus:bg-slate-900/80 border ${activeTheme.isDark ? 'border-slate-700' : 'border-white/20'} focus:border-white focus:outline-none rounded px-2.5 py-1.5 max-w-[210px] text-center font-display cursor-pointer`}
                   >
                     <option value="" className="text-slate-800 bg-white">Select Incoming Lead</option>
                     {personnelList.map(p => (
@@ -1663,7 +1992,7 @@ export default function App() {
 
             {/* Right: Dynamic high visibility status badge */}
             <div className="flex flex-col items-center justify-center min-w-36 text-center">
-              <span className="text-[10px] uppercase font-bold text-indigo-300 font-mono mb-1">
+              <span className={`text-[10px] uppercase font-bold ${activeTheme.activeRibbonMutedText} font-mono mb-1`}>
                 TRANSITION STATUS
               </span>
               <div className={`px-4 py-2 rounded-full font-bold text-xs border shadow-xs tracking-tight uppercase ${currentStatus.badgeStyle}`}>
@@ -1675,14 +2004,14 @@ export default function App() {
         </section>
 
         {/* Main Content Tab Navigation */}
-        <div className="flex items-center justify-start border-b border-[#E2E8F0] pb-2 pt-1">
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-[#E2E8F0] shadow-3xs">
+        <div className={`flex items-center justify-start border-b ${activeTheme.cardBorder} pb-2 pt-1`}>
+          <div className={`flex ${activeTheme.mutedBg} p-1 rounded-xl border ${activeTheme.cardBorder} shadow-3xs`}>
             <button
               onClick={() => setActiveTab("analytics")}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === "analytics"
-                  ? "bg-white text-slate-900 shadow-2xs border border-slate-200"
-                  : "text-slate-500 hover:text-slate-800"
+                  ? `${activeTheme.cardBg} ${activeTheme.cardTitleText} shadow-2xs border ${activeTheme.cardBorder}`
+                  : `${activeTheme.cardSubText} hover:${activeTheme.cardTitleText}`
               }`}
             >
               <span>📊</span> Analytics Dashboard
@@ -1691,8 +2020,8 @@ export default function App() {
               onClick={() => setActiveTab("tracker")}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === "tracker"
-                  ? "bg-white text-slate-900 shadow-2xs border border-slate-200"
-                  : "text-slate-500 hover:text-slate-800"
+                  ? `${activeTheme.cardBg} ${activeTheme.cardTitleText} shadow-2xs border ${activeTheme.cardBorder}`
+                  : `${activeTheme.cardSubText} hover:${activeTheme.cardTitleText}`
               }`}
             >
               <span>📋</span> Workspace Tracker
@@ -1707,18 +2036,17 @@ export default function App() {
           <div className="lg:col-span-2 space-y-6">
             {activeTab === "tracker" ? (
               <>
-                {/* 3. Current Handover Tasks Section */}
-            <section className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl overflow-hidden shadow-xs text-slate-800">
+                       <section className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl overflow-hidden shadow-xs ${activeTheme.isDark ? 'text-slate-200' : 'text-slate-800'}`}>
               
               {/* Header Box styled with design theme */}
-              <div className="bg-white p-4 border-b border-[#E2E8F0] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className={`${activeTheme.cardBg} p-4 border-b ${activeTheme.cardBorder} flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
                 <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-4 bg-indigo-600 rounded-full shrink-0 animate-pulse"></span>
+                  <span className={`w-1.5 h-4 ${activeTheme.id === 'alpine-forest' ? 'bg-emerald-605' : 'bg-indigo-600'} rounded-full shrink-0 animate-pulse bg-indigo-500`}></span>
                   <div>
-                    <h3 className="text-sm font-bold font-display text-slate-900 flex items-center gap-1.5">
+                    <h3 className={`text-sm font-bold font-display ${activeTheme.cardTitleText} flex items-center gap-1.5`}>
                       Active Handover Cycle Tasks
                     </h3>
-                    <p className="text-[11px] text-slate-500 leading-none">
+                    <p className={`text-[11px] ${activeTheme.cardSubText} leading-none`}>
                       Critical tasks verified and actioned during the active transition window.
                     </p>
                   </div>
@@ -1726,76 +2054,96 @@ export default function App() {
                 {/* Micro Progress Tracker Bar */}
                 <div className="text-right space-y-1 min-w-40">
                   <div className="flex justify-between text-[11px] font-medium">
-                    <span className="text-slate-500">Cycle Completeness</span>
-                    <span className="text-emerald-700 font-bold">{percentComplete}%</span>
+                    <span className={`${activeTheme.cardSubText}`}>Cycle Completeness</span>
+                    <span className="text-emerald-500 font-bold">{percentComplete}%</span>
                   </div>
-                  <div className="w-full h-2 bg-slate-100 border border-slate-200 rounded-full overflow-hidden">
+                  <div className={`w-full h-2 ${activeTheme.mutedBg} border ${activeTheme.cardBorder} rounded-full overflow-hidden`}>
                     <div 
                       className="h-full bg-emerald-500 transition-all duration-550"
                       style={{ width: `${percentComplete}%` }}
                     />
                   </div>
-                  <p className="text-[10px] text-slate-400 font-mono leading-none">
+                  <p className={`text-[10px] ${activeTheme.cardSubText} font-mono leading-none`}>
                     {completedCount} of {totalTasksCount} signed off
                   </p>
                 </div>
               </div>
 
               {/* Task table / Card layout */}
-              <div className="p-4 bg-white">
-                <div className="overflow-x-auto border border-[#E2E8F0] rounded-lg">
-                  <table className="w-full text-left text-xs bg-white border-collapse">
+              <div className={`p-4 ${activeTheme.mutedBg}`}>
+                <div className={`overflow-x-auto border ${activeTheme.cardBorder} rounded-lg`}>
+                  <table className={`w-full text-left text-xs ${activeTheme.cardBg} border-collapse`}>
                     <thead>
-                      <tr className="bg-[#F8FAFC] text-slate-500 border-b border-[#E2E8F0] font-mono text-[10px] uppercase font-bold">
-                        <th className="p-3 w-10 text-center">Done</th>
-                        <th className="p-3">Task Description</th>
-                        <th className="p-3 w-28 text-center">Owner</th>
-                        <th className="p-3 w-24 text-center">Priority</th>
-                        <th className="p-3 w-32 text-center">Countdown</th>
-                        <th className="p-3 w-12 text-center">Trash</th>
+                      <tr className={`${activeTheme.mutedBg} ${activeTheme.cardSubText} border-b ${activeTheme.cardBorder} font-mono text-[10px] uppercase font-bold select-none`}>
+                        <th className={`p-3 w-16 text-center cursor-pointer hover:opacity-85 transition-opacity ${activeTheme.cardBorder}`} onClick={() => handleTasksSort("completed")}>
+                          <div className="flex items-center justify-center gap-0.5">
+                            Done {renderSortIcon("completed", tasksSortField, tasksSortDirection)}
+                          </div>
+                        </th>
+                        <th className="p-3 cursor-pointer hover:opacity-85 transition-opacity text-left" onClick={() => handleTasksSort("description")}>
+                          <div className="flex items-center gap-0.5 justify-start">
+                            Task Description {renderSortIcon("description", tasksSortField, tasksSortDirection)}
+                          </div>
+                        </th>
+                        <th className="p-3 w-28 text-center cursor-pointer hover:opacity-85 transition-opacity" onClick={() => handleTasksSort("ownerName")}>
+                          <div className="flex items-center justify-center gap-0.5">
+                            Owner {renderSortIcon("ownerName", tasksSortField, tasksSortDirection)}
+                          </div>
+                        </th>
+                        <th className="p-3 w-24 text-center cursor-pointer hover:opacity-85 transition-opacity" onClick={() => handleTasksSort("priority")}>
+                          <div className="flex items-center justify-center gap-0.5">
+                            Priority {renderSortIcon("priority", tasksSortField, tasksSortDirection)}
+                          </div>
+                        </th>
+                        <th className="p-3 w-32 text-center cursor-pointer hover:opacity-85 transition-opacity" onClick={() => handleTasksSort("dueDate")}>
+                          <div className="flex items-center justify-center gap-0.5">
+                            Countdown {renderSortIcon("dueDate", tasksSortField, tasksSortDirection)}
+                          </div>
+                        </th>
+                        <th className="p-3 w-12 text-center text-slate-400">Trash</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#E2E8F0]">
-                      {dbState.tasks.length === 0 ? (
+                    <tbody className={`divide-y ${activeTheme.cardBorder}`}>
+                      {getSortedTasks().length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="p-8 text-center text-slate-400 bg-[#F8FAFC]/50">
-                            <CheckCircle2 className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                          <td colSpan={6} className={`p-8 text-center ${activeTheme.cardSubText} ${activeTheme.mutedBg}`}>
+                            <CheckCircle2 className="w-8 h-8 mx-auto text-slate-350 mb-2 opacity-60" />
                             <p className="font-semibold text-xs">No active tasks in current rotation.</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">Use the prompt box beneath to queue transition tasks.</p>
+                            <p className="text-[10px] opacity-75 mt-0.5">Use the prompt box beneath to queue transition tasks.</p>
                           </td>
                         </tr>
                       ) : (
-                        dbState.tasks.map((task) => {
+                        getSortedTasks().map((task) => {
                           const countdown = calculateDaysRemaining(task.dueDate);
                           
                           return (
                             <tr 
                               key={task.id} 
-                              className={`hover:bg-slate-50 transition-colors ${
-                                task.completed ? "bg-emerald-50/10 text-slate-400" : ""
-                              }`}
+                              className={`hover:opacity-95 transition-opacity ${
+                                task.completed ? "bg-emerald-500/5 text-slate-400 opacity-80" : ""
+                              } ${activeTheme.mutedBg}/10 border-b ${activeTheme.cardBorder}`}
                             >
                               <td className="p-3 text-center">
                                 <button
                                   onClick={() => handleToggleTask(task.id)}
-                                  className="focus:outline-none inline-block align-middle cursor-pointer transition-transform duration-100 active:scale-95 text-slate-450 hover:text-indigo-650"
+                                  className={`focus:outline-none inline-block align-middle cursor-pointer transition-transform duration-100 active:scale-95 ${activeTheme.cardSubText} hover:${activeTheme.accentText}`}
                                 >
                                   {task.completed ? (
-                                    <CheckSquare className="w-5 h-5 text-emerald-600 fill-emerald-50" />
+                                    <CheckSquare className="w-5 h-5 text-emerald-600 fill-emerald-500/10" />
                                   ) : (
-                                    <Square className="w-5 h-5 text-slate-300 hover:text-indigo-650" />
+                                    <Square className="w-5 h-5 text-slate-305" />
                                   )}
                                 </button>
                               </td>
 
                               <td className="p-3 font-medium leading-relaxed">
-                                <span className={task.completed ? "line-through text-slate-400" : ""}>
+                                <span className={task.completed ? "line-through text-slate-400" : activeTheme.cardTitleText}>
                                   {task.description}
                                 </span>
                               </td>
 
                               <td className="p-3 text-center">
-                                <span className="px-2 py-0.5 bg-[#F8FAFC] border border-[#E2E8F0] text-slate-600 font-semibold rounded-full text-[10px]">
+                                <span className={`px-2 py-0.5 ${activeTheme.mutedBg} border ${activeTheme.cardBorder} ${activeTheme.cardSubText} font-semibold rounded-full text-[10px]`}>
                                   {task.ownerName}
                                 </span>
                               </td>
@@ -1803,10 +2151,10 @@ export default function App() {
                               <td className="p-3 text-center">
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wide ${
                                   task.priority === "High" 
-                                    ? "bg-rose-50 text-rose-700 border-rose-200" 
+                                    ? "bg-rose-500/10 text-rose-500 border-rose-500/20" 
                                     : task.priority === "Medium"
-                                    ? "bg-amber-50 text-amber-700 border-amber-200"
-                                    : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                    ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                                    : `${activeTheme.accentBg} ${activeTheme.accentText} ${activeTheme.accentBorder}`
                                 }`}>
                                   {task.priority}
                                 </span>
@@ -1814,16 +2162,16 @@ export default function App() {
 
                               <td className="p-3 text-center">
                                 {task.completed ? (
-                                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase font-mono">
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-550 text-emerald-600 border border-emerald-500/20 uppercase font-mono">
                                     Signed Off
                                   </span>
                                 ) : (
                                   <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-mono font-bold border ${
                                     countdown.isOverdue 
-                                      ? "bg-rose-105 bg-rose-50 text-rose-800 border-rose-200 animate-pulse" 
+                                      ? "bg-rose-500/10 text-rose-500 border-rose-500/20 animate-pulse" 
                                       : countdown.isToday
-                                      ? "bg-amber-100 text-amber-950 border-amber-200 font-bold"
-                                      : "bg-slate-50 text-slate-700 border-slate-200"
+                                      ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                                      : `${activeTheme.mutedBg} ${activeTheme.cardTitleText} ${activeTheme.cardBorder}`
                                   }`}>
                                     <Clock className="w-3 h-3 text-slate-400" />
                                     {countdown.text}
@@ -1839,10 +2187,10 @@ export default function App() {
                                     id: task.id,
                                     name: task.description
                                   })}
-                                  className="text-slate-350 hover:text-rose-600 hover:bg-rose-50 p-1 rounded transition-colors"
+                                  className="text-slate-350 hover:text-rose-550 rounded transition-colors"
                                   title="Remove Task"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="w-3.5 h-3.5 hover:text-rose-500" />
                                 </button>
                               </td>
                             </tr>
@@ -1855,30 +2203,30 @@ export default function App() {
               </div>
 
               {/* Add Active Task Form */}
-              <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 m-4 space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-700 font-mono flex items-center gap-1.5">
-                  <Plus className="w-3.5 h-3.5 text-indigo-500" />
+              <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl p-4 m-4 space-y-3`}>
+                <h4 className={`text-xs font-bold uppercase tracking-wider ${activeTheme.accentText} font-mono flex items-center gap-1.5`}>
+                  <Plus className="w-3.5 h-3.5" />
                   Add Shift Task to Current Cycle
                 </h4>
                 <form onSubmit={handleAddTask} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                   <div className="md:col-span-5 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block">Task Description</label>
+                    <label className={`text-[10px] font-bold ${activeTheme.cardSubText} uppercase tracking-wide block`}>Task Description</label>
                     <input
                       type="text"
                       placeholder='e.g., Verify 9-5/8" intermediate casing tally and check cement slurry weight'
                       value={newTask.description}
                       onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                      className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full shadow-xs"
+                      className={`${activeTheme.inputBg} border rounded px-3 py-1.5 text-xs outline-none w-full shadow-xs`}
                       required
                     />
                   </div>
 
                   <div className="md:col-span-2 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block">Owner Name</label>
+                    <label className={`text-[10px] font-bold ${activeTheme.cardSubText} uppercase tracking-wide block`}>Owner Name</label>
                     <select
                       value={newTask.ownerName}
                       onChange={(e) => setNewTask({ ...newTask, ownerName: e.target.value })}
-                      className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full shadow-xs cursor-pointer"
+                      className={`${activeTheme.inputBg} border rounded px-3 py-1.5 text-xs outline-none w-full shadow-xs cursor-pointer`}
                       required
                     >
                       <option value="">Select Owner</option>
@@ -1889,11 +2237,11 @@ export default function App() {
                   </div>
 
                   <div className="md:col-span-2 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block">Priority</label>
+                    <label className={`text-[10px] font-bold ${activeTheme.cardSubText} uppercase tracking-wide block`}>Priority</label>
                     <select
                       value={newTask.priority}
                       onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as any })}
-                      className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full shadow-xs"
+                      className={`${activeTheme.inputBg} border rounded px-3 py-1.5 text-xs outline-none w-full shadow-xs cursor-pointer`}
                     >
                       <option value="High">High</option>
                       <option value="Medium">Medium</option>
@@ -1902,12 +2250,12 @@ export default function App() {
                   </div>
 
                   <div className="md:col-span-2 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block">Due Date</label>
+                    <label className={`text-[10px] font-bold ${activeTheme.cardSubText} uppercase tracking-wide block`}>Due Date</label>
                     <input
                       type="date"
                       value={newTask.dueDate}
                       onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-                      className="bg-white border border-[#E2E8F0] rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono shadow-xs"
+                      className={`${activeTheme.inputBg} border rounded px-2 py-1.5 text-xs outline-none w-full font-mono shadow-xs`}
                       required
                     />
                   </div>
@@ -1915,7 +2263,7 @@ export default function App() {
                   <div className="md:col-span-1">
                     <button
                       type="submit"
-                      className="w-full h-[32px] bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-bold flex items-center justify-center transition-colors cursor-pointer"
+                      className={`w-full h-[32px] ${activeTheme.primaryBtn} rounded text-xs font-bold flex items-center justify-center transition-colors cursor-pointer`}
                       title="Add to table"
                     >
                       Add
@@ -1927,83 +2275,103 @@ export default function App() {
             </section>
 
             {/* 4. Persistent Task Backlog Section */}
-            <section className="bg-rose-50/15 border border-[#E2E8F0] rounded-xl overflow-hidden shadow-xs relative">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-rose-50/45 rounded-full blur-2xl -mr-16 -mt-16 pointer-events-none" />
+            <section className={`${activeTheme.isDark ? 'bg-red-950/5' : 'bg-rose-50/15'} border ${activeTheme.cardBorder} rounded-xl overflow-hidden shadow-xs relative`}>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 rounded-full blur-2xl -mr-16 -mt-16 pointer-events-none" />
               
               {/* Header block with red-accent banner styling */}
-              <div className="bg-white p-4 border-b border-[#E2E8F0] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className={`${activeTheme.cardBg} p-4 border-b ${activeTheme.cardBorder} flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4`}>
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-4 bg-rose-500 rounded-full shrink-0"></span>
                   <div>
-                    <h3 className="text-sm font-bold font-display text-slate-900 inline-flex items-center gap-1.5">
+                    <h3 className={`text-sm font-bold font-display ${activeTheme.cardTitleText} inline-flex items-center gap-1.5`}>
                       Persistent Backlog Block
                     </h3>
-                    <p className="text-[11px] text-slate-500">
+                    <p className={`text-[11px] ${activeTheme.cardSubText}`}>
                       Unresolved tasks carried over across cycles. Keeps long-term issues visible until closure.
                     </p>
                   </div>
                 </div>
                 {/* Visual badge highlight */}
-                <div className="px-2.5 py-0.5 bg-rose-100 text-rose-700 border border-rose-200 rounded font-mono text-[9px] font-bold leading-none shrink-0 uppercase tracking-wide">
+                <div className="px-2.5 py-0.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded font-mono text-[9px] font-bold leading-none shrink-0 uppercase tracking-wide">
                   ACTIVE AGING TICKER
                 </div>
               </div>
 
               {/* Backlog table container */}
-              <div className="p-4 bg-white/60">
-                <div className="overflow-x-auto border border-[#E2E8F0] rounded-lg bg-white">
-                  <table className="w-full text-left text-xs bg-white border-collapse">
+              <div className={`p-4 ${activeTheme.mutedBg}`}>
+                <div className={`overflow-x-auto border ${activeTheme.cardBorder} rounded-lg ${activeTheme.cardBg}`}>
+                  <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-[#F8FAFC] text-slate-500 border-b border-[#E2E8F0] font-mono text-[10px] uppercase font-bold">
-                        <th className="p-3 w-10 text-center">Done</th>
-                        <th className="p-3">Backlog Task Description</th>
-                        <th className="p-3 w-28 text-center">Owner</th>
-                        <th className="p-3 w-24 text-center">Priority</th>
-                        <th className="p-3 w-36 text-center">Aging Days</th>
-                        <th className="p-3 w-32 text-center">Interaction</th>
+                      <tr className={`${activeTheme.mutedBg} ${activeTheme.cardSubText} border-b ${activeTheme.cardBorder} font-mono text-[10px] uppercase font-bold select-none`}>
+                        <th className="p-3 w-16 text-center cursor-pointer hover:opacity-85 transition-opacity" onClick={() => handleBacklogSort("completed")}>
+                          <div className="flex items-center justify-center gap-0.5">
+                            Done {renderSortIcon("completed", backlogSortField, backlogSortDirection)}
+                          </div>
+                        </th>
+                        <th className="p-3 cursor-pointer hover:opacity-85 transition-opacity text-left" onClick={() => handleBacklogSort("description")}>
+                          <div className="flex items-center gap-0.5 justify-start">
+                            Backlog Task Description {renderSortIcon("description", backlogSortField, backlogSortDirection)}
+                          </div>
+                        </th>
+                        <th className="p-3 w-28 text-center cursor-pointer hover:opacity-85 transition-opacity" onClick={() => handleBacklogSort("ownerName")}>
+                          <div className="flex items-center justify-center gap-0.5">
+                            Owner {renderSortIcon("ownerName", backlogSortField, backlogSortDirection)}
+                          </div>
+                        </th>
+                        <th className="p-3 w-24 text-center cursor-pointer hover:opacity-85 transition-opacity" onClick={() => handleBacklogSort("priority")}>
+                          <div className="flex items-center justify-center gap-0.5">
+                            Priority {renderSortIcon("priority", backlogSortField, backlogSortDirection)}
+                          </div>
+                        </th>
+                        <th className="p-3 w-36 text-center cursor-pointer hover:opacity-85 transition-opacity" onClick={() => handleBacklogSort("backlogDate")}>
+                          <div className="flex items-center justify-center gap-0.5">
+                            Aging Days {renderSortIcon("backlogDate", backlogSortField, backlogSortDirection)}
+                          </div>
+                        </th>
+                        <th className="p-3 w-32 text-center text-slate-400 font-bold">Interaction</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#E2E8F0]">
-                      {dbState.backlog.length === 0 ? (
+                    <tbody className={`divide-y ${activeTheme.cardBorder}`}>
+                      {getSortedBacklog().length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="p-8 text-center text-slate-400 bg-slate-50/50">
-                            <CheckCircle2 className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                          <td colSpan={6} className={`p-8 text-center ${activeTheme.cardSubText} ${activeTheme.mutedBg}`}>
+                            <CheckCircle2 className="w-8 h-8 mx-auto text-slate-355 mb-2 opacity-60" />
                             <p className="font-semibold text-xs">The Backlog is clean!</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">All persistent items checked off or closed.</p>
+                            <p className="text-[10px] opacity-75 mt-0.5">All persistent items checked off or closed.</p>
                           </td>
                         </tr>
                       ) : (
-                        dbState.backlog.map((item) => {
+                        getSortedBacklog().map((item) => {
                           const agingDays = calculateAgingDays(item.backlogDate);
                           
                           return (
                             <tr 
                               key={item.id} 
-                              className={`hover:bg-slate-50/60 transition-colors ${
-                                item.completed ? "bg-emerald-50/10 text-slate-400" : ""
-                              }`}
+                              className={`hover:opacity-95 transition-opacity ${
+                                item.completed ? "bg-emerald-500/5 text-slate-400 opacity-80" : ""
+                              } border-b ${activeTheme.cardBorder}`}
                             >
                               <td className="p-3 text-center">
                                 <button
                                   onClick={() => handleToggleBacklog(item.id)}
-                                  className="focus:outline-none inline-block align-middle cursor-pointer text-slate-450 hover:text-indigo-650"
+                                  className={`focus:outline-none inline-block align-middle cursor-pointer ${activeTheme.cardSubText} hover:${activeTheme.accentText}`}
                                 >
                                   {item.completed ? (
-                                    <CheckSquare className="w-5 h-5 text-emerald-600" />
+                                    <CheckSquare className="w-5 h-5 text-emerald-600 fill-emerald-500/10" />
                                   ) : (
-                                    <Square className="w-5 h-5 text-slate-300 hover:text-indigo-650" />
+                                    <Square className="w-5 h-5 text-slate-305" />
                                   )}
                                 </button>
                               </td>
 
                               <td className="p-3 font-medium leading-relaxed">
-                                <span className={item.completed ? "line-through text-slate-400" : ""}>
+                                <span className={item.completed ? "line-through text-slate-400" : activeTheme.cardTitleText}>
                                   {item.description}
                                 </span>
                               </td>
 
                               <td className="p-3 text-center">
-                                <span className="px-2 py-0.5 bg-[#F8FAFC] border border-[#E2E8F0] text-slate-600 font-semibold rounded-full text-[10px]">
+                                <span className={`px-2 py-0.5 ${activeTheme.mutedBg} border ${activeTheme.cardBorder} ${activeTheme.cardSubText} font-semibold rounded-full text-[10px]`}>
                                   {item.ownerName}
                                 </span>
                               </td>
@@ -2011,10 +2379,10 @@ export default function App() {
                               <td className="p-3 text-center">
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wide ${
                                   item.priority === "High" 
-                                    ? "bg-rose-50 text-rose-700 border-rose-200" 
+                                    ? "bg-rose-500/10 text-rose-500 border-rose-500/20" 
                                     : item.priority === "Medium"
-                                    ? "bg-amber-50 text-amber-700 border-amber-200"
-                                    : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                    ? "bg-amber-500/10 text-amber-550 border-amber-500/20"
+                                    : `${activeTheme.accentBg} ${activeTheme.accentText} ${activeTheme.accentBorder}`
                                 }`}>
                                   {item.priority}
                                 </span>
@@ -2022,16 +2390,16 @@ export default function App() {
 
                               <td className="p-3 text-center">
                                 {item.completed ? (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] uppercase font-mono">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 font-bold bg-emerald-500/10 text-emerald-550 text-emerald-600 border border-emerald-500/20 rounded text-[10px] uppercase font-mono">
                                     Signed Off
                                   </span>
                                 ) : (
                                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
                                     agingDays >= 20 
-                                      ? "bg-rose-50 text-rose-700 border-rose-200 animate-pulse" 
+                                      ? "bg-rose-500/10 text-rose-500 border-rose-500/20 animate-pulse" 
                                       : agingDays >= 10
-                                      ? "bg-amber-50 text-amber-800 border-amber-200"
-                                      : "bg-slate-50 text-slate-600 border-slate-150"
+                                      ? "bg-amber-500/10 text-amber-550 border-amber-500/20"
+                                      : `${activeTheme.mutedBg} ${activeTheme.cardSubText} ${activeTheme.cardBorder}`
                                   }`}>
                                     In Backlog: {agingDays} Days
                                   </span>
@@ -2043,11 +2411,11 @@ export default function App() {
                                   {!item.completed && (
                                     <button
                                       onClick={() => handlePromoteBacklog(item.id)}
-                                      className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[10px] rounded font-semibold inline-flex items-center gap-0.5 transition-colors cursor-pointer"
+                                      className="px-2 py-1 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20 text-[10px] rounded font-semibold inline-flex items-center gap-0.5 transition-colors cursor-pointer"
                                       title="Move this task to active rotation due today."
                                     >
                                       Promote
-                                      <ArrowUpRight className="w-3 h-3 text-indigo-650" />
+                                      <ArrowUpRight className="w-3 h-3" />
                                     </button>
                                   )}
                                   <button
@@ -2057,9 +2425,10 @@ export default function App() {
                                       id: item.id,
                                       name: item.description
                                     })}
-                                    className="text-slate-350 hover:text-rose-600 hover:bg-rose-50 p-1 rounded font-semibold text-xs inline-block cursor-pointer"
+                                    className="text-slate-350 hover:text-rose-550 rounded transition-colors"
+                                    title="Remove Backlog Item"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Trash2 className="w-3.5 h-3.5 hover:text-rose-500" />
                                   </button>
                                 </div>
                               </td>
@@ -2073,30 +2442,30 @@ export default function App() {
               </div>
 
               {/* Add Backlog item Form */}
-              <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 m-4 space-y-3 shadow-xs">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-rose-700 font-mono flex items-center gap-1.5">
-                  <Plus className="w-3.5 h-3.5 text-rose-500" />
+              <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl p-4 m-4 space-y-3 shadow-xs`}>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-rose-500 font-mono flex items-center gap-1.5">
+                  <Plus className="w-3.5 h-3.5" />
                   File New Backlog Item
                 </h4>
                 <form onSubmit={handleAddBacklog} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                   <div className="md:col-span-12 lg:col-span-5 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block">Task Description</label>
+                    <label className={`text-[10px] font-bold ${activeTheme.cardSubText} uppercase tracking-wide block`}>Task Description</label>
                     <input
                       type="text"
                       placeholder="e.g., Design offset structural template and finalize pore pressure logs"
                       value={newBacklog.description}
                       onChange={(e) => setNewBacklog({ ...newBacklog, description: e.target.value })}
-                      className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full shadow-xs"
+                      className={`${activeTheme.inputBg} border rounded px-3 py-1.5 text-xs outline-none w-full shadow-xs`}
                       required
                     />
                   </div>
 
                   <div className="md:col-span-4 lg:col-span-2 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block">Owner Name</label>
+                    <label className={`text-[10px] font-bold ${activeTheme.cardSubText} uppercase tracking-wide block`}>Owner Name</label>
                     <select
                       value={newBacklog.ownerName}
                       onChange={(e) => setNewBacklog({ ...newBacklog, ownerName: e.target.value })}
-                      className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full shadow-xs cursor-pointer"
+                      className={`${activeTheme.inputBg} border rounded px-3 py-1.5 text-xs outline-none w-full shadow-xs cursor-pointer`}
                       required
                     >
                       <option value="">Select Owner</option>
@@ -2107,11 +2476,11 @@ export default function App() {
                   </div>
 
                   <div className="md:col-span-3 lg:col-span-2 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block">Priority</label>
+                    <label className={`text-[10px] font-bold ${activeTheme.cardSubText} uppercase tracking-wide block`}>Priority</label>
                     <select
                       value={newBacklog.priority}
                       onChange={(e) => setNewBacklog({ ...newBacklog, priority: e.target.value as any })}
-                      className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full shadow-xs"
+                      className={`${activeTheme.inputBg} border rounded px-3 py-1.5 text-xs outline-none w-full shadow-xs cursor-pointer`}
                     >
                       <option value="High">High</option>
                       <option value="Medium">Medium</option>
@@ -2120,12 +2489,12 @@ export default function App() {
                   </div>
 
                   <div className="md:col-span-3 lg:col-span-2 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block">Created Date</label>
+                    <label className={`text-[10px] font-bold ${activeTheme.cardSubText} uppercase tracking-wide block`}>Created Date</label>
                     <input
                       type="date"
                       value={newBacklog.backlogDate}
                       onChange={(e) => setNewBacklog({ ...newBacklog, backlogDate: e.target.value })}
-                      className="bg-white border border-[#E2E8F0] rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono shadow-xs"
+                      className={`${activeTheme.inputBg} border rounded px-2 py-1.5 text-xs outline-none w-full font-mono shadow-xs`}
                       required
                     />
                   </div>
@@ -2133,7 +2502,7 @@ export default function App() {
                   <div className="md:col-span-2 lg:col-span-1">
                     <button
                       type="submit"
-                      className="w-full h-[32px] bg-slate-100 border border-[#E2E8F0] text-slate-700 hover:bg-slate-200 rounded text-xs font-bold flex items-center justify-center transition-colors cursor-pointer"
+                      className={`w-full h-[32px] ${activeTheme.primaryBtn} rounded text-xs font-bold flex items-center justify-center transition-colors cursor-pointer`}
                     >
                       File
                     </button>
@@ -2150,29 +2519,29 @@ export default function App() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   
                   {/* Card 1: Open Shift Tasks */}
-                  <div className="bg-white border border-indigo-150 rounded-xl p-4 shadow-3xs flex flex-col justify-between relative overflow-hidden h-28 hover:shadow-2xs transition-shadow">
+                  <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl p-4 shadow-3xs flex flex-col justify-between relative overflow-hidden h-28 hover:shadow-2xs transition-shadow`}>
                     <div className="absolute top-0 left-0 w-full h-1.5 bg-indigo-500" />
                     <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 font-mono">
                       Open Shift Tasks
                     </span>
                     <div className="flex items-baseline justify-between mt-2">
-                      <span className="text-3xl font-black font-display text-indigo-900 leading-none">
+                      <span className={`text-3xl font-black font-display leading-none ${activeTheme.cardTitleText}`}>
                         {dbState.tasks.filter((t) => !t.completed).length}
                       </span>
-                      <span className="text-xs text-indigo-400 font-mono font-medium">
+                      <span className={`text-xs ${activeTheme.cardSubText} font-mono font-medium`}>
                         active cycle
                       </span>
                     </div>
                   </div>
 
                   {/* Card 2: Critical Bottlenecks */}
-                  <div className="bg-white border border-rose-150 rounded-xl p-4 shadow-3xs flex flex-col justify-between relative overflow-hidden h-28 hover:shadow-2xs transition-shadow">
+                  <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl p-4 shadow-3xs flex flex-col justify-between relative overflow-hidden h-28 hover:shadow-2xs transition-shadow`}>
                     <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-500" />
                     <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500 font-mono">
                       Critical Bottlenecks
                     </span>
                     <div className="flex items-baseline justify-between mt-2">
-                      <span className="text-3xl font-black font-display text-rose-900 leading-none">
+                      <span className="text-3xl font-black font-display text-rose-500 leading-none">
                         {dbState.tasks.filter((t) => !t.completed && (t.priority === "High" || calculateDaysRemaining(t.dueDate).isOverdue)).length}
                       </span>
                       <span className="text-xs text-rose-400 font-mono font-medium">
@@ -2182,36 +2551,36 @@ export default function App() {
                   </div>
 
                   {/* Card 3: Total Persistent Backlog */}
-                  <div className="bg-white border border-amber-150 rounded-xl p-4 shadow-3xs flex flex-col justify-between relative overflow-hidden h-28 hover:shadow-2xs transition-shadow">
+                  <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl p-4 shadow-3xs flex flex-col justify-between relative overflow-hidden h-28 hover:shadow-2xs transition-shadow`}>
                     <div className="absolute top-0 left-0 w-full h-1.5 bg-amber-500" />
                     <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500 font-mono">
                       Total Persistent Backlog
                     </span>
                     <div className="flex items-baseline justify-between mt-2">
-                      <span className="text-3xl font-black font-display text-amber-950 leading-none">
+                      <span className={`text-3xl font-black font-display leading-none ${activeTheme.cardTitleText}`}>
                         {dbState.backlog.filter((b) => !b.completed).length}
                       </span>
-                      <span className="text-xs text-amber-500 font-mono font-medium">
+                      <span className={`text-xs ${activeTheme.cardSubText} font-mono font-medium`}>
                         pending log
                       </span>
                     </div>
                   </div>
 
                   {/* Card 4: Rotation Sign-Off Rate */}
-                  <div className="bg-white border border-emerald-150 rounded-xl p-4 shadow-3xs flex flex-col justify-between relative overflow-hidden h-28 hover:shadow-2xs transition-shadow">
+                  <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl p-4 shadow-3xs flex flex-col justify-between relative overflow-hidden h-28 hover:shadow-2xs transition-shadow`}>
                     <div className="absolute top-0 left-0 w-full h-1.5 bg-emerald-500" />
                     <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 font-mono">
                       Rotation Sign-Off Rate
                     </span>
                     <div className="flex items-baseline justify-between mt-2">
-                      <span className="text-3xl font-black font-display text-emerald-900 leading-none">
+                      <span className="text-3xl font-black font-display text-emerald-500 leading-none">
                         {(() => {
                           const total = dbState.tasks.length + dbState.backlog.length;
                           const completed = dbState.tasks.filter((t) => t.completed).length + dbState.backlog.filter((b) => b.completed).length;
                           return total > 0 ? Math.round((completed / total) * 100) : 100;
                         })()}%
                       </span>
-                      <span className="text-xs text-emerald-500 font-mono font-medium">
+                      <span className={`text-xs ${activeTheme.cardSubText} font-mono font-medium`}>
                         overall completed
                       </span>
                     </div>
@@ -2223,12 +2592,12 @@ export default function App() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                   {/* Task Aging & Distribution Panel */}
-                  <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl overflow-hidden shadow-xs p-5 space-y-4">
-                    <div className="border-b border-[#E2E8F0] pb-2.5">
-                      <h4 className="text-xs font-bold font-display uppercase tracking-wider text-slate-850 flex items-center gap-1.5">
+                  <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl overflow-hidden shadow-xs p-5 space-y-4`}>
+                    <div className={`border-b ${activeTheme.cardBorder} pb-2.5`}>
+                      <h4 className={`text-xs font-bold font-display uppercase tracking-wider ${activeTheme.cardTitleText} flex items-center gap-1.5`}>
                         ⏳ Backlog Aging and Distribution Timeline
                       </h4>
-                      <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed font-sans">
+                      <p className={`text-[10px] ${activeTheme.cardSubText} mt-0.5 leading-relaxed font-sans`}>
                         Evaluates outstanding backlogs grouped by duration since record creation (relative to current date).
                       </p>
                     </div>
@@ -2241,17 +2610,17 @@ export default function App() {
                         const groups = [
                           { label: "Critical Age (> 30 Days)", count: openBacklogs.filter(b => calculateAgingDays(b.backlogDate) > 30).length, color: "bg-rose-500" },
                           { label: "Warning Age (15 - 30 Days)", count: openBacklogs.filter(b => { const d = calculateAgingDays(b.backlogDate); return d > 14 && d <= 30; }).length, color: "bg-amber-500" },
-                          { label: "Moderate Age (8 - 14 Days)", count: openBacklogs.filter(b => { const d = calculateAgingDays(b.backlogDate); return d > 7 && d <= 14; }).length, color: "bg-indigo-505 bg-indigo-500" },
+                          { label: "Moderate Age (8 - 14 Days)", count: openBacklogs.filter(b => { const d = calculateAgingDays(b.backlogDate); return d > 7 && d <= 14; }).length, color: "bg-indigo-500" },
                           { label: "Recent Queue (≤ 7 Days)", count: openBacklogs.filter(b => calculateAgingDays(b.backlogDate) <= 7).length, color: "bg-emerald-500" },
                         ];
 
                         return (
                           <>
                             {totalCount === 0 ? (
-                              <div className="py-12 text-center text-slate-400 bg-white border border-[#E2E8F0] rounded-lg p-4">
+                              <div className={`py-12 text-center text-slate-400 ${activeTheme.mutedBg} border ${activeTheme.cardBorder} rounded-lg p-4`}>
                                 <span className="text-xl">✨</span>
-                                <p className="font-semibold text-xs mt-1 text-slate-600">All Backlog Items Cleared!</p>
-                                <p className="text-[10px] text-slate-400 mt-0.5">There are zero open persistent items aging in storage.</p>
+                                <p className={`font-semibold text-xs mt-1 ${activeTheme.cardTitleText}`}>All Backlog Items Cleared!</p>
+                                <p className={`text-[10px] ${activeTheme.cardSubText} mt-0.5`}>There are zero open persistent items aging in storage.</p>
                               </div>
                             ) : (
                               <div className="space-y-3">
@@ -2260,10 +2629,10 @@ export default function App() {
                                   return (
                                     <div key={g.label} className="space-y-1">
                                       <div className="flex justify-between items-center text-xs">
-                                        <span className="font-semibold text-slate-700">{g.label}</span>
-                                        <span className="font-mono text-slate-500 font-bold">{g.count} <span className="text-[10px] text-slate-400">({pct}%)</span></span>
+                                        <span className={`font-semibold ${activeTheme.cardTitleText}`}>{g.label}</span>
+                                        <span className={`font-mono ${activeTheme.cardTitleText} font-bold`}>{g.count} <span className={`text-[10px] ${activeTheme.cardSubText}`}>({pct}%)</span></span>
                                       </div>
-                                      <div className="w-full h-2.5 bg-slate-100 rounded-full border border-slate-200 overflow-hidden">
+                                      <div className={`w-full h-2.5 ${activeTheme.mutedBg} rounded-full border ${activeTheme.cardBorder} overflow-hidden`}>
                                         <div 
                                           className={`h-full ${g.color} rounded-full transition-all duration-500`} 
                                           style={{ width: `${pct}%` }} 
@@ -2272,7 +2641,7 @@ export default function App() {
                                     </div>
                                   );
                                 })}
-                                <p className="text-[10px] text-slate-400 text-center font-mono pt-1">
+                                <p className={`text-[10px] ${activeTheme.cardSubText} text-center font-mono pt-1`}>
                                   Evaluated against reference date {CURRENT_DATE_STR} across {totalCount} open backlogs.
                                 </p>
                               </div>
@@ -2284,17 +2653,17 @@ export default function App() {
                   </div>
 
                   {/* Resource Workload Matrix Panel */}
-                  <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl overflow-hidden shadow-xs p-5 space-y-4">
-                    <div className="border-b border-[#E2E8F0] pb-2.5">
-                      <h4 className="text-xs font-bold font-display uppercase tracking-wider text-slate-850 flex items-center gap-1.5">
+                  <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl overflow-hidden shadow-xs p-5 space-y-4`}>
+                    <div className={`border-b ${activeTheme.cardBorder} pb-2.5`}>
+                      <h4 className={`text-xs font-bold font-display uppercase tracking-wider ${activeTheme.cardTitleText} flex items-center gap-1.5`}>
                         👥 Resource Workload & Priority Matrix
                       </h4>
-                      <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed font-sans">
+                      <p className={`text-[10px] ${activeTheme.cardSubText} mt-0.5 leading-relaxed font-sans`}>
                         Tracks open task counts assigned across active on-shift operators and backlog queues.
                       </p>
                     </div>
 
-                    <div className="overflow-x-auto border border-[#E2E8F0] rounded-lg">
+                    <div className={`overflow-x-auto border ${activeTheme.cardBorder} rounded-lg`}>
                       {(() => {
                         const activeOpenTasks = dbState.tasks.filter(t => !t.completed);
                         const activeOpenBacklog = dbState.backlog.filter(b => !b.completed);
@@ -2316,39 +2685,39 @@ export default function App() {
 
                         if (matrixRows.length === 0) {
                           return (
-                            <div className="py-12 text-center text-slate-400 bg-white p-4">
+                            <div className={`py-12 text-center text-slate-400 ${activeTheme.mutedBg} p-4`}>
                               <span className="text-xl">✅</span>
-                              <p className="font-semibold text-xs mt-1 text-slate-600">Perfect Workload Balance</p>
-                              <p className="text-[10px] text-slate-400 mt-0.5">All engineers currently have zero pending open actions.</p>
+                              <p className={`font-semibold text-xs mt-1 ${activeTheme.cardTitleText}`}>Perfect Workload Balance</p>
+                              <p className={`text-[10px] ${activeTheme.cardSubText} mt-0.5`}>All engineers currently have zero pending open actions.</p>
                             </div>
                           );
                         }
 
                         return (
-                          <table className="w-full text-left text-xs bg-white border-collapse">
+                          <table className="w-full text-left text-xs border-collapse">
                             <thead>
-                              <tr className="bg-slate-50 text-slate-505 border-b border-[#E2E8F0] font-mono text-[10px] uppercase font-bold">
+                              <tr className={`${activeTheme.mutedBg} ${activeTheme.cardSubText} border-b ${activeTheme.cardBorder} font-mono text-[10px] uppercase font-bold`}>
                                 <th className="p-2.5">Resource Name</th>
-                                <th className="p-2.5 text-center text-rose-700">High</th>
-                                <th className="p-2.5 text-center text-amber-700">Med</th>
-                                <th className="p-2.5 text-center text-indigo-700">Low</th>
-                                <th className="p-2.5 text-center font-bold text-slate-850">Total</th>
+                                <th className="p-2.5 text-center text-rose-500">High</th>
+                                <th className="p-2.5 text-center text-amber-500">Med</th>
+                                <th className="p-2.5 text-center text-indigo-500 font-bold">Low</th>
+                                <th className="p-2.5 text-center font-bold">Total</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-[#E2E8F0]">
+                            <tbody className={`divide-y ${activeTheme.cardBorder}`}>
                               {matrixRows.map(row => (
-                                <tr key={row.owner} className="hover:bg-slate-50 transition-colors">
-                                  <td className="p-2.5 font-semibold text-slate-800">{row.owner}</td>
-                                  <td className={`p-2.5 text-center font-mono font-bold ${row.high ? "text-rose-600 bg-rose-50/20" : "text-slate-300"}`}>
+                                <tr key={row.owner} className="hover:opacity-90 transition-opacity">
+                                  <td className={`p-2.5 font-semibold ${activeTheme.cardTitleText}`}>{row.owner}</td>
+                                  <td className={`p-2.5 text-center font-mono font-bold ${row.high ? "text-rose-500 bg-rose-500/10" : "text-slate-355"}`}>
                                     {row.high || "-"}
                                   </td>
-                                  <td className={`p-2.5 text-center font-mono font-bold ${row.med ? "text-amber-600 bg-amber-50/20" : "text-slate-300"}`}>
+                                  <td className={`p-2.5 text-center font-mono font-bold ${row.med ? "text-amber-500 bg-amber-500/10" : "text-slate-355"}`}>
                                     {row.med || "-"}
                                   </td>
-                                  <td className={`p-2.5 text-center font-mono font-bold ${row.low ? "text-indigo-600 bg-indigo-50/20" : "text-slate-300"}`}>
+                                  <td className={`p-2.5 text-center font-mono font-bold ${row.low ? "text-indigo-500 bg-indigo-500/10" : "text-slate-355"}`}>
                                     {row.low || "-"}
                                   </td>
-                                  <td className="p-2.5 text-center font-mono font-bold bg-slate-50/50 text-slate-900 border-l border-[#E2E8F0]">
+                                  <td className={`p-2.5 text-center font-mono font-bold ${activeTheme.mutedBg} ${activeTheme.cardTitleText} border-l ${activeTheme.cardBorder}`}>
                                     {row.total}
                                   </td>
                                 </tr>
@@ -2371,13 +2740,13 @@ export default function App() {
             
             {/* 6. Digital Sign-Off Panel */}
             {activeTab === "tracker" && (
-              <section className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl overflow-hidden shadow-xs">
+              <section className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl overflow-hidden shadow-xs`}>
                 
-                <div className="bg-white p-4 border-b border-[#E2E8F0]">
-                  <h3 className="text-sm font-bold font-display text-slate-900 flex items-center gap-1.5">
+                <div className={`p-4 border-b ${activeTheme.cardBorder}`}>
+                  <h3 className={`text-sm font-bold font-display ${activeTheme.cardTitleText} flex items-center gap-1.5`}>
                     🛡️ Digital Sign-off Panel
                   </h3>
-                  <p className="text-[11px] text-slate-500">
+                  <p className={`text-[11px] ${activeTheme.cardSubText}`}>
                     Confirm rotational procedures prior to finalizing operational handover.
                   </p>
                 </div>
@@ -2385,7 +2754,7 @@ export default function App() {
                 {/* Checklist */}
                 <div className="p-4 space-y-4">
                   <div className="space-y-2.5">
-                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-500 font-mono block">
+                    <label className={`text-[10px] uppercase font-bold tracking-wider ${activeTheme.cardSubText} font-mono block`}>
                       Mandatory Operating Verifications
                     </label>
 
@@ -2393,18 +2762,18 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => handleToggleChecklist("blockersReviewed")}
-                      className="w-full flex items-start gap-2.5 text-left p-2.5 bg-white border border-[#E2E8F0] hover:border-indigo-400 hover:bg-indigo-50/5 rounded-lg transition-all text-xs cursor-pointer group"
+                      className={`w-full flex items-start gap-2.5 text-left p-2.5 ${activeTheme.mutedBg} border ${activeTheme.cardBorder} hover:border-emerald-500 rounded-lg transition-all text-xs cursor-pointer group`}
                     >
                       <span className="mt-0.5 shrink-0">
                         {dbState.signoffChecklist.blockersReviewed ? (
                           <CheckSquare className="w-4 h-4 text-emerald-600" />
                         ) : (
-                          <Square className="w-4 h-4 text-slate-300 group-hover:text-slate-400" />
+                          <Square className={`w-4 h-4 ${activeTheme.cardSubText} group-hover:opacity-85`} />
                         )}
                       </span>
                       <div>
-                        <span className="font-semibold text-slate-800 block leading-tight">Direct Counterpart Briefing Completed</span>
-                        <span className="text-[10px] text-slate-400 leading-normal block mt-0.5">Conducted a direct, line-by-line sync on all critical ongoing files, look-ahead plans, and active team challenges.</span>
+                        <span className={`font-semibold ${activeTheme.cardTitleText} block leading-tight`}>Direct Counterpart Briefing Completed</span>
+                        <span className={`text-[10px] ${activeTheme.cardSubText} leading-normal block mt-0.5`}>Conducted a direct, line-by-line sync on all critical ongoing files, look-ahead plans, and active team challenges.</span>
                       </div>
                     </button>
 
@@ -2412,18 +2781,18 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => handleToggleChecklist("systemsNormal")}
-                      className="w-full flex items-start gap-2.5 text-left p-2.5 bg-white border border-[#E2E8F0] hover:border-indigo-400 hover:bg-indigo-50/5 rounded-lg transition-all text-xs cursor-pointer group"
+                      className={`w-full flex items-start gap-2.5 text-left p-2.5 ${activeTheme.mutedBg} border ${activeTheme.cardBorder} hover:border-emerald-500 rounded-lg transition-all text-xs cursor-pointer group`}
                     >
                       <span className="mt-0.5 shrink-0">
                         {dbState.signoffChecklist.systemsNormal ? (
                           <CheckSquare className="w-4 h-4 text-emerald-600" />
                         ) : (
-                          <Square className="w-4 h-4 text-slate-300 group-hover:text-slate-400" />
+                          <Square className={`w-4 h-4 ${activeTheme.cardSubText} group-hover:opacity-85`} />
                         )}
                       </span>
                       <div>
-                        <span className="font-semibold text-slate-800 block leading-tight">Outstanding Tasks & High-Priority Backlog Noticed</span>
-                        <span className="text-[10px] text-slate-400 leading-normal block mt-0.5">Incoming engineer has explicitly reviewed the active deadlines list and verified assigned ownership for pending items.</span>
+                        <span className={`font-semibold ${activeTheme.cardTitleText} block leading-tight`}>Outstanding Tasks & High-Priority Backlog Noticed</span>
+                        <span className={`text-[10px] ${activeTheme.cardSubText} leading-normal block mt-0.5`}>Incoming engineer has explicitly reviewed the active deadlines list and verified assigned ownership for pending items.</span>
                       </div>
                     </button>
 
@@ -2431,33 +2800,33 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => handleToggleChecklist("credsTransferred")}
-                      className="w-full flex items-start gap-2.5 text-left p-2.5 bg-white border border-[#E2E8F0] hover:border-indigo-400 hover:bg-indigo-50/5 rounded-lg transition-all text-xs cursor-pointer group"
+                      className={`w-full flex items-start gap-2.5 text-left p-2.5 ${activeTheme.mutedBg} border ${activeTheme.cardBorder} hover:border-emerald-500 rounded-lg transition-all text-xs cursor-pointer group`}
                     >
                       <span className="mt-0.5 shrink-0">
                         {dbState.signoffChecklist.credsTransferred ? (
                           <CheckSquare className="w-4 h-4 text-emerald-600" />
                         ) : (
-                          <Square className="w-4 h-4 text-slate-300 group-hover:text-slate-400" />
+                          <Square className={`w-4 h-4 ${activeTheme.cardSubText} group-hover:opacity-85`} />
                         )}
                       </span>
                       <div>
-                        <span className="font-semibold text-slate-800 block leading-tight">Master & Important Documents Handovered</span>
-                        <span className="text-[10px] text-slate-400 leading-normal block mt-0.5">Saved all the latest versions of documents.</span>
+                        <span className={`font-semibold ${activeTheme.cardTitleText} block leading-tight`}>Master & Important Documents Handovered</span>
+                        <span className={`text-[10px] ${activeTheme.cardSubText} leading-normal block mt-0.5`}>Saved all the latest versions of documents.</span>
                       </div>
                     </button>
                   </div>
 
                   {/* Handover Logs Note Area */}
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-500 font-mono block">
-                      Handover Summary Notes <span className="text-[#F43F5E] font-bold">*</span>
+                    <label className={`text-[10px] uppercase font-bold tracking-wider ${activeTheme.cardSubText} font-mono block`}>
+                      Handover Summary Notes <span className="text-rose-500 font-bold">*</span>
                     </label>
                     <textarea
                       placeholder="e.g., Aligned casing designs, reviewed Phase-2 tender status for Rig-42. Confirmed long-lead casing AFE approvals are in progress, dispatched material procurement sheets."
                       rows={4}
                       value={logText}
                       onChange={(e) => setLogText(e.target.value)}
-                      className="w-full text-xs p-2.5 bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-400 placeholder:text-slate-400 font-sans resize-y shadow-xs"
+                      className={`w-full text-xs p-2.5 ${activeTheme.inputBg} border ${activeTheme.cardBorder} rounded-lg focus:outline-none placeholder:text-slate-450 font-sans resize-y shadow-xs`}
                       required
                     />
                   </div>
@@ -2471,7 +2840,7 @@ export default function App() {
                       <FileCheck className="w-4 h-4" />
                       Acknowledge & Save Handover
                     </button>
-                    <p className="text-[9px] text-slate-400 text-center mt-2 font-mono leading-none">
+                    <p className={`text-[9px] ${activeTheme.cardSubText} text-center mt-2 font-mono leading-none`}>
                       Triggering commits rotation & logs write action dynamically.
                     </p>
                   </div>
@@ -2480,21 +2849,21 @@ export default function App() {
             )}
 
             {/* 5. Handover History Archive */}
-            <section className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl overflow-hidden shadow-xs">
+            <section className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl overflow-hidden shadow-xs`}>
               
-              <div className="bg-white p-4 border-b border-[#E2E8F0]">
-                <h3 className="text-sm font-bold font-display text-slate-900 flex items-center gap-1.5">
+              <div className={`p-4 border-b ${activeTheme.cardBorder}`}>
+                <h3 className={`text-sm font-bold font-display ${activeTheme.cardTitleText} flex items-center gap-1.5`}>
                   🕒 Historical Handover Archive
                 </h3>
-                <p className="text-[11px] text-slate-500">
+                <p className={`text-[11px] ${activeTheme.cardSubText}`}>
                   Audit tracker of past sign-offs, dates, shift logs, and statistics.
                 </p>
               </div>
 
               <div className="p-4 space-y-3.5 max-h-[380px] overflow-y-auto pr-1">
                 {dbState.history.length === 0 ? (
-                  <div className="p-6 text-center text-slate-400 bg-white border border-[#E2E8F0] rounded-lg">
-                    <History className="w-6 h-6 mx-auto text-slate-300 mb-2" />
+                  <div className={`p-6 text-center ${activeTheme.cardSubText} ${activeTheme.mutedBg} border ${activeTheme.cardBorder} rounded-lg`}>
+                    <History className={`w-6 h-6 mx-auto ${activeTheme.cardSubText} mb-2`} />
                     <p className="text-xs font-semibold">No shift history found.</p>
                   </div>
                 ) : (
@@ -2512,38 +2881,38 @@ export default function App() {
                     return (
                       <div 
                         key={record.id} 
-                        className="bg-white border border-[#E2E8F0] p-3 rounded-lg space-y-2.5 hover:shadow-xs transition-shadow shadow-2xs"
+                        className={`${activeTheme.mutedBg} border ${activeTheme.cardBorder} p-3 rounded-lg space-y-2.5 hover:shadow-xs transition-shadow shadow-2xs`}
                       >
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-1 w-full">
-                          <span className="font-mono text-[9px] font-bold text-slate-450">
+                        <div className={`flex items-center justify-between border-b ${activeTheme.cardBorder} pb-1 w-full`}>
+                          <span className={`font-mono text-[9px] font-bold ${activeTheme.cardSubText}`}>
                             {localDate} @ {localTime}
                           </span>
-                          <span className="px-1.5 py-0.5 rounded text-[8px] bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 uppercase font-mono leading-none">
+                          <span className="px-1.5 py-0.5 rounded text-[8px] bg-emerald-50/10 text-emerald-550 text-emerald-500 font-bold border border-emerald-500/20 uppercase font-mono leading-none">
                             Signed Off
                           </span>
                         </div>
 
                         {/* Transition Flow Initials */}
-                        <div className="flex items-center gap-1 bg-white text-xs">
-                          <div className="flex items-center gap-1 bg-[#F8FAFC] border border-[#E2E8F0] px-1.5 py-0.5 rounded">
-                            <span className="w-1.5 h-1.5 rounded-full bg-rose-450 bg-rose-400 inline-block"></span>
-                            <span className="font-bold text-slate-700 text-[10px] leading-none">{record.outgoingLead}</span>
+                        <div className="flex items-center gap-1 text-xs">
+                          <div className={`${activeTheme.inputBg} border ${activeTheme.cardBorder} px-1.5 py-0.5 rounded flex items-center gap-1`}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-400 inline-block"></span>
+                            <span className={`font-bold ${activeTheme.cardTitleText} text-[10px] leading-none`}>{record.outgoingLead}</span>
                           </div>
-                          <ArrowRight className="w-3 h-3 text-slate-300 shrink-0" />
-                          <div className="flex items-center gap-1 bg-[#F8FAFC] border border-[#E2E8F0] px-1.5 py-0.5 rounded">
-                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-505 bg-indigo-500 inline-block"></span>
-                            <span className="font-bold text-slate-700 text-[10px] leading-none">{record.incomingLead}</span>
+                          <ArrowRight className={`w-3 h-3 ${activeTheme.cardSubText} shrink-0`} />
+                          <div className={`${activeTheme.inputBg} border ${activeTheme.cardBorder} px-1.5 py-0.5 rounded flex items-center gap-1`}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block"></span>
+                            <span className={`font-bold ${activeTheme.cardTitleText} text-[10px] leading-none`}>{record.incomingLead}</span>
                           </div>
                         </div>
 
                         {/* Summary Log memo */}
-                        <div className="bg-[#F8FAFC] rounded p-2 border border-[#E2E8F0] text-[10px] text-slate-605 text-slate-600 italic font-sans leading-relaxed">
+                        <div className={`${activeTheme.inputBg} rounded p-2 border ${activeTheme.cardBorder} text-[10px] ${activeTheme.cardSubText} italic font-sans leading-relaxed`}>
                           &quot;{record.logText}&quot;
                         </div>
 
-                        <div className="flex items-center justify-between text-[9px] text-slate-400 font-mono leading-none">
+                        <div className={`flex items-center justify-between text-[9px] ${activeTheme.cardSubText} font-mono leading-none`}>
                           <span>Verified: {record.tasksCount} Active • {record.backlogCount} Backlog</span>
-                          <span className="text-slate-400 font-sans">By User: <strong>{record.signedOffBy}</strong></span>
+                          <span className={`${activeTheme.cardSubText} font-sans`}>By User: <strong>{record.signedOffBy}</strong></span>
                         </div>
                       </div>
                     );
@@ -2556,7 +2925,7 @@ export default function App() {
         </div>
       </main>
 
-      <footer className="mt-16 border-t border-[#E2E8F0] py-6 text-center text-xs text-slate-400 font-mono">
+      <footer className={`mt-16 border-t ${activeTheme.cardBorder} py-6 text-center text-xs ${activeTheme.cardSubText} font-mono`}>
         <p>Team Handover & Task Backlog Platform • Professional Core Operations Dashboard</p>
         <p className="mt-1">Vite + React Core Runtime environment successfully validated</p>
       </footer>
