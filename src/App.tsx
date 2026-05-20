@@ -113,7 +113,7 @@ const DEFAULT_WORKSPACE_STATE: HandoverState = {
 };
 
 export default function App() {
-  const isEnvConfigured = !!(((import.meta as any).env || {}).VITE_FIREBASE_PROJECT_ID);
+  const [isEnvConfigured, setIsEnvConfigured] = useState(false);
   // App state
   const [dbState, setDbState] = useState<HandoverState>(DEFAULT_WORKSPACE_STATE);
 
@@ -382,35 +382,61 @@ export default function App() {
 
   // Load Firestore configurations initially
   useEffect(() => {
-    const env = (import.meta as any).env || {};
-    const envProjectId = env.VITE_FIREBASE_PROJECT_ID;
-    const envApiKey = env.VITE_FIREBASE_API_KEY;
-    const envAuthDomain = env.VITE_FIREBASE_AUTH_DOMAIN || "";
-    const envAppId = env.VITE_FIREBASE_APP_ID || "";
-
-    if (envProjectId && envApiKey) {
-      const keys = {
-        projectId: envProjectId,
-        apiKey: envApiKey,
-        authDomain: envAuthDomain,
-        appId: envAppId
-      };
-      setConfigKeys(keys);
-      initializeFirebaseSync(keys);
-    } else {
-      const savedKeys = localStorage.getItem("handover_firebase_keys");
-      if (savedKeys) {
-        try {
-          const parsed = JSON.parse(savedKeys);
-          if (parsed.projectId && parsed.apiKey) {
-            setConfigKeys(parsed);
-            initializeFirebaseSync(parsed);
-          }
-        } catch (e) {
-          console.error("Error reading saved localStorage keys", e);
+    // 1. Retrieve dynamic backend configuration keys (works in Dev & Cloud Run production)
+    fetch("/api/config")
+      .then((res) => {
+        if (!res.ok) throw new Error("Backend api not available");
+        return res.json();
+      })
+      .then((apiConfig) => {
+        if (apiConfig && apiConfig.projectId && apiConfig.apiKey) {
+          const keys = {
+            projectId: apiConfig.projectId,
+            apiKey: apiConfig.apiKey,
+            authDomain: apiConfig.authDomain || "",
+            appId: apiConfig.appId || ""
+          };
+          setIsEnvConfigured(true);
+          setConfigKeys(keys);
+          initializeFirebaseSync(keys);
+        } else {
+          throw new Error("Missing credentials in api response");
         }
-      }
-    }
+      })
+      .catch(() => {
+        // 2. Fall back to static compile-time Vite variables
+        const env = (import.meta as any).env || {};
+        const envProjectId = env.VITE_FIREBASE_PROJECT_ID;
+        const envApiKey = env.VITE_FIREBASE_API_KEY;
+        const envAuthDomain = env.VITE_FIREBASE_AUTH_DOMAIN || "";
+        const envAppId = env.VITE_FIREBASE_APP_ID || "";
+
+        if (envProjectId && envApiKey) {
+          const keys = {
+            projectId: envProjectId,
+            apiKey: envApiKey,
+            authDomain: envAuthDomain,
+            appId: envAppId
+          };
+          setIsEnvConfigured(true);
+          setConfigKeys(keys);
+          initializeFirebaseSync(keys);
+        } else {
+          // 3. Fall back to manually connected client credentials from local storage
+          const savedKeys = localStorage.getItem("handover_firebase_keys");
+          if (savedKeys) {
+            try {
+              const parsed = JSON.parse(savedKeys);
+              if (parsed.projectId && parsed.apiKey) {
+                setConfigKeys(parsed);
+                initializeFirebaseSync(parsed);
+              }
+            } catch (e) {
+              console.error("Error reading saved localStorage keys", e);
+            }
+          }
+        }
+      });
   }, []);
 
   // Save workspace settings & selection to localStorage
