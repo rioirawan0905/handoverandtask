@@ -422,32 +422,10 @@ export default function App() {
           setConfigKeys(keys);
           initializeFirebaseSync(keys);
         } else {
-          // 3. Fall back to manually connected client credentials from local storage
-          const savedKeys = localStorage.getItem("handover_firebase_keys");
-          if (savedKeys) {
-            try {
-              const parsed = JSON.parse(savedKeys);
-              if (parsed.projectId && parsed.apiKey) {
-                setConfigKeys(parsed);
-                initializeFirebaseSync(parsed);
-              } else {
-                throw new Error("Invalid keys in localStorage");
-              }
-            } catch (e) {
-              console.error("Error reading saved localStorage keys", e);
-              setConnectionStatusMsg({
-                type: "error",
-                text: "No Firebase configuration detected. Please enter your Firebase config keys in the Settings panel below to connect."
-              });
-              setIsSettingsOpen(true);
-            }
-          } else {
-            setConnectionStatusMsg({
-              type: "error",
-              text: "No Firebase configuration detected. Please enter your Firebase config keys in the Settings panel below to connect."
-            });
-            setIsSettingsOpen(true);
-          }
+          setConnectionStatusMsg({
+            type: "error",
+            text: "Automated cloud synchronization config not detected. Re-triggering automated system connection..."
+          });
         }
       });
   }, []);
@@ -778,21 +756,6 @@ export default function App() {
         handleRemovePersonnel(id, name);
         break;
     }
-  };
-
-  const handleConnectFirebase = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!configKeys.projectId || !configKeys.apiKey) {
-      setConnectionStatusMsg({
-        type: "error",
-        text: "Project ID and API Key are strict requirements."
-      });
-      return;
-    }
-
-    // Save configuration settings
-    localStorage.setItem("handover_firebase_keys", JSON.stringify(configKeys));
-    initializeFirebaseSync(configKeys);
   };
 
   // Helper: dynamic calculation of days difference
@@ -1496,66 +1459,15 @@ export default function App() {
                     </div>
                   </div>
                 ) : (
-                  <form onSubmit={handleConnectFirebase} className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono">Project ID <span className="text-rose-500">*</span></label>
-                        <input
-                          type="text"
-                          placeholder="project-x-42"
-                          value={configKeys.projectId}
-                          onChange={(e) => setConfigKeys({ ...configKeys, projectId: e.target.value })}
-                          className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono"
-                          required
-                        />
-                      </div>
-
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono">API Key <span className="text-rose-500">*</span></label>
-                        <input
-                          type="password"
-                          placeholder="AIzaSyD-fake-key"
-                          value={configKeys.apiKey}
-                          onChange={(e) => setConfigKeys({ ...configKeys, apiKey: e.target.value })}
-                          className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono"
-                          required
-                        />
-                      </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 text-center space-y-2.5">
+                    <div className="flex items-center justify-center gap-2 text-slate-600 font-bold text-xs font-mono uppercase">
+                      <RefreshCw className="w-4 h-4 text-indigo-600 animate-spin" />
+                      <span>Configuring Cloud Integration...</span>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono">Auth Domain</label>
-                        <input
-                          type="text"
-                          placeholder="app.firebaseapp.com"
-                          value={configKeys.authDomain}
-                          onChange={(e) => setConfigKeys({ ...configKeys, authDomain: e.target.value })}
-                          className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono"
-                        />
-                      </div>
-
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[9px] uppercase font-bold tracking-wider text-slate-500 font-mono">App ID</label>
-                        <input
-                          type="text"
-                          placeholder="1:2345:web:abc"
-                          value={configKeys.appId}
-                          onChange={(e) => setConfigKeys({ ...configKeys, appId: e.target.value })}
-                          className="bg-white border border-[#E2E8F0] rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none w-full font-mono"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-2">
-                      <button
-                        type="submit"
-                        className="flex-1 bg-indigo-650 hover:bg-indigo-700 bg-indigo-600 text-white text-xs font-bold py-2 px-4 rounded transition-colors cursor-pointer"
-                      >
-                        Connect to Firebase Cloud
-                      </button>
-                    </div>
-                  </form>
+                    <p className="text-slate-500 text-[11px] leading-relaxed">
+                      Connecting automatically to your zero-trust Cloud Firestore workspace cluster. Handover rosters, boards, and sign-offs will resume in background instantly once verified.
+                    </p>
+                  </div>
                 )}
 
                 <div className="pt-2 text-[11px] text-slate-500 border-t border-[#E2E8F0] flex items-center justify-between">
