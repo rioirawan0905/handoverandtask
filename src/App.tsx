@@ -129,7 +129,16 @@ export default function App() {
     const saved = localStorage.getItem("handover_workspace_list");
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          // Filter out user's auto-created or testing workspaces with naming 'Handover Testing'
+          const filtered = parsed.filter(w => 
+            w.name !== "Handover Testing" && 
+            w.id !== "handover-testing" && 
+            w.id !== "ws-handover-testing"
+          );
+          return filtered.length > 0 ? filtered : [{ id: "currentWorkspace", name: "Default Handover Space" }];
+        }
       } catch (e) {
         // ignore and fallback
       }
@@ -437,10 +446,18 @@ export default function App() {
             const displayName = data.workspaceName || (docSnapshot.id === "currentWorkspace" 
               ? "Default Handover Space" 
               : docSnapshot.id.replace(/^ws-/, "").replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()));
-            loadedWorkspaces.push({
-              id: docSnapshot.id,
-              name: displayName
-            });
+            
+            // Filter out "Handover Testing" or similar
+            if (
+              displayName !== "Handover Testing" &&
+              docSnapshot.id !== "handover-testing" &&
+              docSnapshot.id !== "ws-handover-testing"
+            ) {
+              loadedWorkspaces.push({
+                id: docSnapshot.id,
+                name: displayName
+              });
+            }
           });
         }
         
@@ -1049,7 +1066,7 @@ export default function App() {
       )}
       {/* Dynamic Navigation/Info Header */}
       <header className="border-b border-rose-100 bg-white/85 sticky top-0 backdrop-blur z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-indigo-650 flex items-center justify-center text-white shadow-md">
               <Database className="w-5 h-5 active-pulse text-indigo-100" />
@@ -1071,7 +1088,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="flex flex-wrap items-center gap-2 justify-start md:justify-end">
             {/* Active Handover Dropdown Selector */}
             <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shadow-2xs">
               <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-500 font-mono">
@@ -1248,7 +1265,7 @@ export default function App() {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pl-2">
               {/* Left Column: Personnel Roster Management */}
-              <div className="lg:col-span-5 space-y-4 lg:border-r lg:border-slate-200 lg:pr-6 text-left">
+              <div className="lg:col-span-5 space-y-4 border-b border-slate-200 pb-6 lg:border-b-0 lg:pb-0 lg:border-r lg:border-slate-200 lg:pr-6 text-left">
                 <div>
                   <h3 className="text-xs uppercase tracking-wider font-extrabold text-slate-705 text-indigo-950 font-mono flex items-center gap-1">
                     <span>👥</span> Add / Manage Personnel
@@ -1629,7 +1646,7 @@ export default function App() {
 
               {/* Task table / Card layout */}
               <div className="p-4 bg-white">
-                <div className="overflow-hidden border border-[#E2E8F0] rounded-lg">
+                <div className="overflow-x-auto border border-[#E2E8F0] rounded-lg">
                   <table className="w-full text-left text-xs bg-white border-collapse">
                     <thead>
                       <tr className="bg-[#F8FAFC] text-slate-500 border-b border-[#E2E8F0] font-mono text-[10px] uppercase font-bold">
@@ -1832,7 +1849,7 @@ export default function App() {
 
               {/* Backlog table container */}
               <div className="p-4 bg-white/60">
-                <div className="overflow-hidden border border-[#E2E8F0] rounded-lg bg-white">
+                <div className="overflow-x-auto border border-[#E2E8F0] rounded-lg bg-white">
                   <table className="w-full text-left text-xs bg-white border-collapse">
                     <thead>
                       <tr className="bg-[#F8FAFC] text-slate-500 border-b border-[#E2E8F0] font-mono text-[10px] uppercase font-bold">
