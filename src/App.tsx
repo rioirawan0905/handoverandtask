@@ -156,7 +156,7 @@ export default function App() {
   });
   
   // Database configuration
-  const [firebaseConfigMode, setFirebaseConfigMode] = useState<"demo" | "cloud">("demo");
+  const [firebaseConfigMode, setFirebaseConfigMode] = useState<"demo" | "cloud">("cloud");
   const [configKeys, setConfigKeys] = useState<{
     projectId: string;
     apiKey: string;
@@ -266,7 +266,7 @@ export default function App() {
   const [connectionStatusMsg, setConnectionStatusMsg] = useState<{
     type: "success" | "error" | "info";
     text: string;
-  }>({ type: "info", text: "Running in Standard Local Mode. Data is persisted securely in your web browser." });
+  }>({ type: "info", text: "Initializing team database cloud synchronization..." });
 
   // Add Task Forms state
   const [newTask, setNewTask] = useState({
@@ -448,23 +448,6 @@ export default function App() {
     localStorage.setItem("handover_active_workspace_id", currentSelectedWorkspaceId);
   }, [currentSelectedWorkspaceId]);
 
-  // Load local demo workspace state when switching in demo mode
-  useEffect(() => {
-    if (firebaseConfigMode === "demo") {
-      const savedLocalState = localStorage.getItem(`handover_local_demo_db_${currentSelectedWorkspaceId}`);
-      if (savedLocalState) {
-        try {
-          setDbState(JSON.parse(savedLocalState));
-        } catch (e) {
-          console.error("Failed to parse saved local state for " + currentSelectedWorkspaceId, e);
-          setDbState(DEFAULT_WORKSPACE_STATE);
-        }
-      } else {
-        setDbState(DEFAULT_WORKSPACE_STATE);
-      }
-    }
-  }, [currentSelectedWorkspaceId, firebaseConfigMode]);
-
   // Tab state
   const [activeTab, setActiveTab] = useState<"tracker" | "analytics">("tracker");
 
@@ -549,7 +532,6 @@ export default function App() {
         type: "error",
         text: `Initialization Failed: ${err.message}. Check your configuration formats.`
       });
-      setFirebaseConfigMode("demo");
     }
   };
 
@@ -598,7 +580,6 @@ export default function App() {
         type: "error",
         text: `Permission / Connection Denied: ${err.message}. Ensure your Rules match 'handoverSystem/{workspaceId}' and your keys are correct.`
       });
-      setFirebaseConfigMode("demo");
     });
 
     return () => {
@@ -609,35 +590,21 @@ export default function App() {
   const handleWorkspaceChange = (workspaceId: string) => {
     setCurrentSelectedWorkspaceId(workspaceId);
     
-    if (firebaseConfigMode === "demo") {
-      const savedLocalState = localStorage.getItem(`handover_local_demo_db_${workspaceId}`);
-      if (savedLocalState) {
-        try {
-          setDbState(JSON.parse(savedLocalState));
-        } catch (e) {
-          console.error("Failed to parse saved local state for " + workspaceId, e);
-          setDbState(DEFAULT_WORKSPACE_STATE);
-        }
-      } else {
-        setDbState(DEFAULT_WORKSPACE_STATE);
-      }
-    } else {
-      // In cloud mode: Immediately clear current UI tables/data to fulfill the 'clear the tables' directive
-      // until onSnapshot updates from Firestore
-      setDbState({
-        outgoingLead: "",
-        incomingLead: "",
-        tasks: [],
-        backlog: [],
-        history: [],
-        signoffChecklist: {
-          blockersReviewed: false,
-          systemsNormal: false,
-          credsTransferred: false,
-        },
-        latestLog: ""
-      });
-    }
+    // Immediately clear current UI tables/data to fulfill the 'clear the tables' directive
+    // until onSnapshot updates from Firestore
+    setDbState({
+      outgoingLead: "",
+      incomingLead: "",
+      tasks: [],
+      backlog: [],
+      history: [],
+      signoffChecklist: {
+        blockersReviewed: false,
+        systemsNormal: false,
+        credsTransferred: false,
+      },
+      latestLog: ""
+    });
   };
 
   const handleCreateNewWorkspace = (rawName: string) => {
@@ -815,19 +782,6 @@ export default function App() {
     initializeFirebaseSync(configKeys);
   };
 
-  const handleDisconnectFirebase = () => {
-    localStorage.removeItem("handover_firebase_keys");
-    setConfigKeys({ projectId: "", apiKey: "", authDomain: "", appId: "" });
-    setFirestoreInstance(null);
-    setFirebaseConfigMode("demo");
-    setWorkspaces([{ id: "currentWorkspace", name: "Default Handover Space" }]);
-    setCurrentSelectedWorkspaceId("currentWorkspace");
-    setConnectionStatusMsg({
-      type: "info",
-      text: "Disconnected from Cloud Sync. Returned to local browser storage."
-    });
-  };
-
   // Helper: dynamic calculation of days difference
   const calculateDaysRemaining = (dateString: string) => {
     const targetDate = new Date(dateString);
@@ -857,9 +811,6 @@ export default function App() {
     setDbState((prev) => {
       const next = updater(prev);
       triggerFirebaseWrite(next);
-      if (firebaseConfigMode === "demo") {
-        localStorage.setItem(`handover_local_demo_db_${currentSelectedWorkspaceId}`, JSON.stringify(next));
-      }
       return next;
     });
   };
@@ -1058,17 +1009,11 @@ export default function App() {
         badgeStyle: "bg-amber-100 text-amber-800 border border-amber-300",
         textStyle: "text-amber-800"
       };
-    } else if (firebaseConfigMode === "cloud") {
+    } else {
       return {
         label: "Cloud Synced",
         badgeStyle: "bg-indigo-50 text-indigo-700 border border-indigo-200",
         textStyle: "text-indigo-700"
-      };
-    } else {
-      return {
-        label: "Standard Local",
-        badgeStyle: "bg-slate-100 text-slate-700 border border-slate-300",
-        textStyle: "text-slate-600"
       };
     }
   };
@@ -1224,10 +1169,8 @@ export default function App() {
                 <h1 className="text-xl font-display font-bold tracking-tight text-slate-900">
                   Team Handover & Task Backlog
                 </h1>
-                <span className={`px-2 py-0.5 text-xs font-mono font-semibold rounded-full ${
-                  firebaseConfigMode === "cloud" ? "bg-emerald-100 text-emerald-800" : "bg-indigo-100 text-indigo-800"
-                }`}>
-                  {firebaseConfigMode === "cloud" ? "Live Cloud Sync" : "Standard Local"}
+                <span className="px-2 py-0.5 text-xs font-mono font-semibold rounded-full bg-emerald-100 text-emerald-800 animate-pulse">
+                  Live Cloud Sync
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-mono">
@@ -1382,21 +1325,8 @@ export default function App() {
             </div>
             <div>
               <p className="font-medium font-mono text-xs">{connectionStatusMsg.text}</p>
-              {firebaseConfigMode === "demo" && (
-                <p className="text-xs text-slate-500 mt-0.5">
-                  To sync across engineers in real-time or secure logs, configure your Firestore database below.
-                </p>
-              )}
             </div>
           </div>
-          {firebaseConfigMode === "cloud" && !isEnvConfigured && (
-            <button
-              onClick={handleDisconnectFirebase}
-              className="px-2 py-1 bg-white hover:bg-slate-50 text-rose-600 border border-rose-200 hover:border-rose-300 text-xs rounded transition-colors"
-            >
-              Disconnect Cloud
-            </button>
-          )}
         </div>
 
         {/* 1. Collapsible Settings Control Panel */}
@@ -1524,10 +1454,8 @@ export default function App() {
                       Link your workspace to a Google Cloud Firestore instance. All rotation checks, checklists, tasks, and historical entries will synchronize in real-time across users.
                     </p>
                   </div>
-                  <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-tighter ${
-                    firebaseConfigMode === "cloud" ? "bg-emerald-100 text-emerald-800" : "bg-indigo-100 text-indigo-800"
-                  }`}>
-                    {firebaseConfigMode === "cloud" ? "Live Cloud Sync" : "Standard Local Mode"}
+                  <span className="px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-tighter bg-emerald-100 text-emerald-800">
+                    Live Cloud Sync
                   </span>
                 </div>
 
@@ -1613,15 +1541,6 @@ export default function App() {
                       >
                         Connect to Firebase Cloud
                       </button>
-                      {firebaseConfigMode === "cloud" && (
-                        <button
-                          type="button"
-                          onClick={handleDisconnectFirebase}
-                          className="bg-white hover:bg-slate-50 text-rose-600 border border-rose-200 hover:border-rose-300 text-xs rounded py-2 px-4 transition-colors cursor-pointer"
-                        >
-                          Disconnect Cloud
-                        </button>
-                      )}
                     </div>
                   </form>
                 )}
