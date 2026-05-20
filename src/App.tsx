@@ -28,7 +28,7 @@ import {
   Settings
 } from "lucide-react";
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection, getDocs } from "firebase/firestore";
+import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
 
 // Define TypeScript interfaces
 interface PersonnelItem {
@@ -94,100 +94,16 @@ interface HandoverState {
 const CURRENT_DATE_STR = "2026-05-20";
 const CURRENT_DATE_VAL = new Date(CURRENT_DATE_STR);
 
-export const DEFAULT_PERSONNEL: PersonnelItem[] = [
-  { id: "p-1", name: "Alex Reed", title: "Senior Drilling Eng" },
-  { id: "p-2", name: "Sarah Chen", title: "BOP Specialist" },
-  { id: "p-3", name: "Miguel Torres", title: "Materials Lead" },
-  { id: "p-4", name: "David Kim", title: "Night Superintendent" },
-];
+export const DEFAULT_PERSONNEL: PersonnelItem[] = [];
 
 // Initial template mock data
 const DEFAULT_WORKSPACE_STATE: HandoverState = {
-  outgoingLead: "Alex Reed (Senior Drilling Eng)",
-  incomingLead: "Sarah Chen (BOP Specialist)",
+  outgoingLead: "",
+  incomingLead: "",
   personnel: DEFAULT_PERSONNEL,
-  tasks: [
-    {
-      id: "t-1",
-      description: "Verify wellbore hydraulic calculations and deep active mud weight logs for Sector-3 offset wells before drilling the 12-1/4\" section.",
-      ownerName: "Alex Reed (Senior Drilling Eng)",
-      priority: "High",
-      dueDate: "2026-05-22",
-      completed: false,
-    },
-    {
-      id: "t-2",
-      description: "Update critical BOP stack inspection certificates & submit regulatory pressure testing sheets for rig supervisor sign-off.",
-      ownerName: "Sarah Chen (BOP Specialist)",
-      priority: "High",
-      dueDate: "2026-05-21",
-      completed: false,
-    },
-    {
-      id: "t-3",
-      description: "Brief the joint offshore team and structural advisors on the geosteering reservoir logs from Segment-B horizontal plan.",
-      ownerName: "Alex Reed (Senior Drilling Eng)",
-      priority: "Medium",
-      dueDate: "2026-05-25",
-      completed: false,
-    },
-    {
-      id: "t-4",
-      description: "Analyze casing hookload tension variance data on Rig-42 intermediate casing string to finalize cement design adjustments.",
-      ownerName: "Miguel Torres (Materials Lead)",
-      priority: "Low",
-      dueDate: "2026-05-24",
-      completed: true,
-    }
-  ],
-  backlog: [
-    {
-      id: "b-1",
-      description: "Document historical well pore pressure profiles: compile casing-seat calculations and drilling mud plan charts into the engineering library.",
-      ownerName: "Alex Reed (Senior Drilling Eng)",
-      priority: "Medium",
-      backlogDate: "2026-05-02", // 18 Days aging based on May 20
-      completed: false,
-    },
-    {
-      id: "b-2",
-      description: "Review exploration campaign files and drill bit grading reports from the 2025 deepwater central basin project.",
-      ownerName: "Sarah Chen (BOP Specialist)",
-      priority: "Low",
-      backlogDate: "2026-04-25", // 25 Days aging based on May 20
-      completed: false,
-    },
-    {
-      id: "b-3",
-      description: "Re-calibrate bottom-hole assembly (BHA) rotational steerable sensors and verify mud motor casing specs.",
-      ownerName: "Alex Reed (Senior Drilling Eng)",
-      priority: "Low",
-      backlogDate: "2026-05-12", // 8 Days aging based on May 20
-      completed: false,
-    }
-  ],
-  history: [
-    {
-      id: "h-1",
-      date: "2026-05-12T08:30:00Z",
-      outgoingLead: "Sarah Chen (BOP Specialist)",
-      incomingLead: "Alex Reed (Senior Drilling Eng)",
-      logText: "Completed rigorous inspection of rig mud pump liners, validated active string casing tallies, and synchronized directional surveys. Offshore-to-office communication links verified fully functional.",
-      tasksCount: 6,
-      backlogCount: 3,
-      signedOffBy: "Sarah Chen (BOP Specialist)",
-    },
-    {
-      id: "h-2",
-      date: "2026-05-05T09:12:00Z",
-      outgoingLead: "Alex Reed (Senior Drilling Eng)",
-      incomingLead: "Sarah Chen (BOP Specialist)",
-      logText: "Transferred direct oversight of real-time drill string telemetry channels. Deferred secondary cement casing acoustic log auditing to the next rotation window.",
-      tasksCount: 4,
-      backlogCount: 5,
-      signedOffBy: "Alex Reed (Senior Drilling Eng)",
-    }
-  ],
+  tasks: [],
+  backlog: [],
+  history: [],
   signoffChecklist: {
     blockersReviewed: false,
     systemsNormal: false,
@@ -230,9 +146,51 @@ export default function App() {
     appId: ""
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [firestoreInstance, setFirestoreInstance] = useState<any>(null);
   
-  // Personnel references
-  const personnelList = dbState.personnel || DEFAULT_PERSONNEL;
+  // Global Personnel references
+  const [globalPersonnel, setGlobalPersonnel] = useState<PersonnelItem[]>(() => {
+    const saved = localStorage.getItem("handover_global_personnel");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // Fallback to default
+      }
+    }
+    return DEFAULT_PERSONNEL;
+  });
+
+  // Save changes block to localStorage
+  useEffect(() => {
+    localStorage.setItem("handover_global_personnel", JSON.stringify(globalPersonnel));
+  }, [globalPersonnel]);
+
+  // Cloud Sync for global personnel settings document
+  useEffect(() => {
+    if (firebaseConfigMode !== "cloud" || !firestoreInstance) return;
+
+    const rosterDocRef = doc(firestoreInstance, "handoverSettings", "roster");
+    const unsubscribe = onSnapshot(rosterDocRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data && Array.isArray(data.list)) {
+          setGlobalPersonnel(data.list);
+        }
+      } else {
+        // Initialize remote roster settings with the current local dataset
+        setDoc(rosterDocRef, { list: globalPersonnel }).catch(err => {
+          console.error("Failed to initialize cloud roster", err);
+        });
+      }
+    }, (err) => {
+      console.warn("Snapshot listening on roster failed (possibly due to Firestore rules). Falling back to local/cached roster data.", err);
+    });
+
+    return () => unsubscribe();
+  }, [firebaseConfigMode, firestoreInstance]);
+
+  const personnelList = globalPersonnel;
 
   const handleAddPersonnel = (name: string, title: string) => {
     if (!name.trim() || !title.trim()) return;
@@ -241,26 +199,29 @@ export default function App() {
       name: name.trim(),
       title: title.trim(),
     };
-    const updatedPersonnel = [...(dbState.personnel || DEFAULT_PERSONNEL), newPerson];
-    const newState = { ...dbState, personnel: updatedPersonnel };
-    setDbState(newState);
-    triggerFirebaseWrite(newState);
-    if (firebaseConfigMode === "demo") {
-      localStorage.setItem(`handover_local_demo_db_${currentSelectedWorkspaceId}`, JSON.stringify(newState));
+    const updated = [...globalPersonnel, newPerson];
+    setGlobalPersonnel(updated);
+
+    if (firebaseConfigMode === "cloud" && firestoreInstance) {
+      setDoc(doc(firestoreInstance, "handoverSettings", "roster"), { list: updated }).catch(err => {
+        console.error("Failed to sync personnel addition to cloud", err);
+      });
     }
-    addNotification(`Added personnel: ${name.trim()} (${title.trim()})`, "success");
+
+    addNotification(`Added personnel globally: ${name.trim()} (${title.trim()})`, "success");
   };
 
   const handleRemovePersonnel = (id: string, name: string) => {
-    const currentList = dbState.personnel || DEFAULT_PERSONNEL;
-    const updatedPersonnel = currentList.filter(p => p.id !== id);
-    const newState = { ...dbState, personnel: updatedPersonnel };
-    setDbState(newState);
-    triggerFirebaseWrite(newState);
-    if (firebaseConfigMode === "demo") {
-      localStorage.setItem(`handover_local_demo_db_${currentSelectedWorkspaceId}`, JSON.stringify(newState));
+    const updated = globalPersonnel.filter(p => p.id !== id);
+    setGlobalPersonnel(updated);
+
+    if (firebaseConfigMode === "cloud" && firestoreInstance) {
+      setDoc(doc(firestoreInstance, "handoverSettings", "roster"), { list: updated }).catch(err => {
+        console.error("Failed to sync personnel removal to cloud", err);
+      });
     }
-    addNotification(`Removed personnel: ${name}`, "warning");
+
+    addNotification(`Removed personnel globally: ${name}`, "warning");
   };
 
   const [connectionStatusMsg, setConnectionStatusMsg] = useState<{
@@ -378,7 +339,7 @@ export default function App() {
   }, [dbState, currentSelectedWorkspaceId]);
 
   // Firestore object references
-  const [firestoreInstance, setFirestoreInstance] = useState<any>(null);
+  // (Moved up to prevent hoisting/block-scoping errors)
 
   // Load Firestore configurations initially
   useEffect(() => {
@@ -692,6 +653,41 @@ export default function App() {
       setWorkspaceCreateError("");
     }
     return true;
+  };
+
+  const handleDeleteWorkspace = (id: string) => {
+    if (id === "currentWorkspace") {
+      addNotification("The Default Handover Space cannot be deleted.", "warning");
+      return;
+    }
+
+    const wsName = workspaces.find(w => w.id === id)?.name || id;
+    
+    // Filter workspaces
+    const updatedWorkspaces = workspaces.filter(w => w.id !== id);
+    setWorkspaces(updatedWorkspaces);
+    localStorage.setItem("handover_workspace_list", JSON.stringify(updatedWorkspaces));
+
+    // Remove local storage state in case of demo mode
+    localStorage.removeItem(`handover_local_demo_db_${id}`);
+
+    // If in cloud, try to delete doc
+    if (firebaseConfigMode === "cloud" && firestoreInstance) {
+      const docRef = doc(firestoreInstance, "handoverSystem", id);
+      deleteDoc(docRef).then(() => {
+        addNotification(`Deleted workspace "${wsName}" from Cloud Sync.`, "success");
+      }).catch(err => {
+        console.error("Failed to delete workspace doc from Firestore", err);
+      });
+    }
+
+    // Switch selection if current was deleted
+    if (currentSelectedWorkspaceId === id) {
+      const fallbackId = updatedWorkspaces[0]?.id || "currentWorkspace";
+      handleWorkspaceChange(fallbackId);
+    }
+
+    addNotification(`Handover workspace "${wsName}" deleted successfully.`, "success");
   };
 
   const handleConnectFirebase = (e: React.FormEvent) => {
@@ -1077,7 +1073,7 @@ export default function App() {
 
           <div className="flex items-center gap-2 flex-wrap justify-end">
             {/* Active Handover Dropdown Selector */}
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shadow-2xs">
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shadow-2xs">
               <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-500 font-mono">
                 Active Handover:
               </span>
@@ -1090,18 +1086,31 @@ export default function App() {
                   <option key={w.id} value={w.id}>{w.name}</option>
                 ))}
               </select>
-              <button
-                onClick={() => {
-                  setNewWorkspaceInputName("");
-                  setWorkspaceCreateError("");
-                  setShowNewWorkspaceModal(true);
-                }}
-                className="p-1 hover:bg-slate-200 text-slate-600 hover:text-indigo-650 hover:bg-indigo-50 rounded-full cursor-pointer transition-colors"
-                title="Create New Handover Space..."
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
+              {currentSelectedWorkspaceId !== "currentWorkspace" && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteWorkspace(currentSelectedWorkspaceId)}
+                  className="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded transition-colors cursor-pointer"
+                  title="Delete current handover space"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
+
+            {/* Prominent, Clearly Visible Create Handover Space Button */}
+            <button
+              onClick={() => {
+                setNewWorkspaceInputName("");
+                setWorkspaceCreateError("");
+                setShowNewWorkspaceModal(true);
+              }}
+              className="px-3.5 py-1.5 bg-indigo-650 hover:bg-indigo-700 bg-indigo-600 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-sm cursor-pointer select-none"
+              title="Create New Handover Space..."
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Create Handover Space</span>
+            </button>
 
             <button
               onClick={() => setIsSettingsOpen(!isSettingsOpen)}
