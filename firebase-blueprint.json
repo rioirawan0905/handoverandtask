@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "currentWorkspace": {
+      "title": "Current Workspace",
+      "description": "The active team handover workspace containing rotational status, current tasks, aging backlog items, history logs, and sign-off validations.",
+      "type": "object",
+      "properties": {
+        "outgoingLead": {
+          "type": "string",
+          "description": "The person currently ending their shifts/lead cycle"
+        },
+        "incomingLead": {
+          "type": "string",
+          "description": "The counterpart taking over the next lead cycle"
+        },
+        "status": {
+          "type": "string",
+          "description": "The transition status of the shift handover",
+          "enum": ["Demo Mode", "Cloud Synced", "Pending Review", "Signed Off"]
+        },
+        "latestLog": {
+          "type": "string",
+          "description": "Text notes or details about the shift handover"
+        },
+        "tasks": {
+          "type": "array",
+          "description": "Current active cycle tasks to complete or transition"
+        },
+        "backlog": {
+          "type": "array",
+          "description": "Stale or older unresolved backlog tasks with tracking timestamps"
+        },
+        "history": {
+          "type": "array",
+          "description": "Historical records of previous digital sign-offs"
+        },
+        "signoffChecklist": {
+          "type": "object",
+          "description": "Handover checklist items"
+        }
+      },
+      "required": ["outgoingLead", "incomingLead", "status", "tasks", "backlog", "history", "signoffChecklist"]
+    }
+  },
+  "firestore": {
+    "handoverSystem/{workspaceId}": {
+      "schema": "currentWorkspace",
+      "description": "A dynamic team handover workspace document containing rotational status, current tasks, aging backlog items, history logs, and sign-off validations."
+    }
+  }
+}

@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Allow read/write for handover system documents
+    match /handoverSystem/{workspaceId} {
+      allow read, write: if true;
+    }
+  }
+}

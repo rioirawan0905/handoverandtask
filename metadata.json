@@ -1,0 +1,6 @@
+{
+  "name": "Team Handover & Task Backlog Platform",
+  "description": "A collaborative team handover and task backlog platform featuring a dynamic rotation ribbon, active tasks tracker, aging persistent backlog, and on-screen Firebase connection panel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
