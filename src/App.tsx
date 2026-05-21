@@ -31,6 +31,50 @@ import {
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: null,
+      email: null,
+      emailVerified: null,
+      isAnonymous: null,
+      tenantId: null,
+      providerInfo: []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 // Define TypeScript interfaces
 interface PersonnelItem {
   id: string;
@@ -65,6 +109,8 @@ interface HandoverHistoryItem {
   tasksCount: number;
   backlogCount: number;
   signedOffBy: string;
+  tasks?: HandoverTask[];
+  backlog?: BacklogTask[];
 }
 
 interface NotificationItem {
@@ -132,6 +178,48 @@ interface HandoverState {
 // Fixed baseline time based on metadata: 2026-05-20
 const CURRENT_DATE_STR = "2026-05-20";
 const CURRENT_DATE_VAL = new Date(CURRENT_DATE_STR);
+
+export const PRESET_MOCK_HANDOVERS: { id: string; title: string; outgoingLead: string; incomingLead: string; date: string; logText: string; tasks: HandoverTask[] }[] = [
+  {
+    id: "preset-1",
+    title: "A-Shift Handover (BOP Stack Pressure Safety Testing)",
+    outgoingLead: "George Vance (Senior Operator)",
+    incomingLead: "Sarah Connor (Rig Manager)",
+    date: "2026-05-19T06:00:00Z",
+    logText: "Completed choke manifold lining, bleed valves balanced. Monitored mud line return viscosity.",
+    tasks: [
+      { id: "p1-t1", description: "Calibrate high-pressure transducer on Mud Pump 2 on Rig Floor", ownerName: "George Vance (Senior Operator)", priority: "High", dueDate: "2026-05-22", completed: false },
+      { id: "p1-t2", description: "Inspect accumulator backup nitrogen charge on BOP stack", ownerName: "Markus Webb (Lead Engineer)", priority: "High", dueDate: "2026-05-23", completed: false },
+      { id: "p1-t3", description: "Run shear rams functional stroke test telemetry diagnostics", ownerName: "Sarah Connor (Rig Manager)", priority: "Medium", dueDate: "2026-05-24", completed: false },
+      { id: "p1-t4", description: "Update main mud logger telemetry feed log files", ownerName: "George Vance (Senior Operator)", priority: "Low", dueDate: "2026-05-25", completed: false }
+    ]
+  },
+  {
+    id: "preset-2",
+    title: "B-Shift Handover (Stage 2 Sidetrack Drill-string Prep)",
+    outgoingLead: "Sarah Connor (Rig Manager)",
+    incomingLead: "Marcus Crane (Drill Superintendent)",
+    date: "2026-05-19T18:00:00Z",
+    logText: "Re-reamed sidetrack section down to 8,400 ft. Standby pressure normal. Driller key files updated.",
+    tasks: [
+      { id: "p2-t1", description: "Verify casing mud weights and fluid viscosity density calculations", ownerName: "Sarah Connor (Rig Manager)", priority: "High", dueDate: "2026-05-21", completed: false },
+      { id: "p2-t2", description: "Test emergency main kill switch safety valves on Powerhouse 4", ownerName: "Markus Webb (Lead Engineer)", priority: "High", dueDate: "2026-05-22", completed: false },
+      { id: "p2-t3", description: "Scribe drilling jar stroke indicators and torque values", ownerName: "George Vance (Senior Operator)", priority: "Medium", dueDate: "2026-05-23", completed: false }
+    ]
+  },
+  {
+    id: "preset-3",
+    title: "C-Shift Handover (Logistics & Wellhead Completion Prep)",
+    outgoingLead: "Marcus Crane (Drill Superintendent)",
+    incomingLead: "George Vance (Senior Operator)",
+    date: "2026-05-20T06:00:00Z",
+    logText: "Casing delivery verified. Supervised rig floor crew safety induction. Heavy lift plans cleared.",
+    tasks: [
+      { id: "p3-t1", description: "Supervise heavy casing string pick-up assembly and slip test", ownerName: "Marcus Crane (Drill Superintendent)", priority: "High", dueDate: "2026-05-22", completed: false },
+      { id: "p3-t2", description: "Check gas chromatograph calibration bottles and line filters", ownerName: "George Vance (Senior Operator)", priority: "Medium", dueDate: "2026-05-23", completed: false }
+    ]
+  }
+];
 
 export const DEFAULT_PERSONNEL: PersonnelItem[] = [];
 
@@ -301,7 +389,7 @@ export default function App() {
   // Delete confirmation modal state
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     isOpen: boolean;
-    type: "task" | "backlog" | "workspace" | "person";
+    type: "task" | "backlog" | "workspace" | "person" | "history";
     id: string;
     name: string;
   } | null>(null);
@@ -346,26 +434,30 @@ export default function App() {
     apiKey: string;
     authDomain: string;
     appId: string;
+    firestoreDatabaseId?: string;
   }>(() => {
     const env = (import.meta as any).env || {};
     const envProjectId = env.VITE_FIREBASE_PROJECT_ID || "";
     const envApiKey = env.VITE_FIREBASE_API_KEY || "";
     const envAuthDomain = env.VITE_FIREBASE_AUTH_DOMAIN || "";
     const envAppId = env.VITE_FIREBASE_APP_ID || "";
+    const envDatabaseId = env.VITE_FIREBASE_DATABASE_ID || "";
 
     if (envProjectId && envApiKey) {
       return {
         projectId: envProjectId,
         apiKey: envApiKey,
         authDomain: envAuthDomain,
-        appId: envAppId
+        appId: envAppId,
+        firestoreDatabaseId: envDatabaseId
       };
     }
     return {
       projectId: "",
       apiKey: "",
       authDomain: "",
-      appId: ""
+      appId: "",
+      firestoreDatabaseId: ""
     };
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -411,10 +503,16 @@ export default function App() {
         // Initialize remote roster settings with the current local dataset
         setDoc(rosterDocRef, { list: globalPersonnel }).catch(err => {
           console.error("Failed to initialize cloud roster", err);
+          handleFirestoreError(err, OperationType.WRITE, "handoverSettings/roster");
         });
       }
     }, (err) => {
       console.warn("Snapshot listening on roster failed (possibly due to Firestore rules). Falling back to local/cached roster data.", err);
+      try {
+        handleFirestoreError(err, OperationType.GET, "handoverSettings/roster");
+      } catch (e) {
+        // Just let it log
+      }
     });
 
     return () => unsubscribe();
@@ -435,6 +533,8 @@ export default function App() {
     if (firebaseConfigMode === "cloud" && firestoreInstance) {
       setDoc(doc(firestoreInstance, "handoverSettings", "roster"), { list: updated }).catch(err => {
         console.error("Failed to sync personnel addition to cloud", err);
+        addNotification(`⚠️ Failed to sync personnel addition to cloud: Missing or insufficient permissions. Please make sure your Firestore Security Rules allow read/write access to "/handoverSettings/roster" and "/handoverSystem/*".`, "warning");
+        handleFirestoreError(err, OperationType.WRITE, "handoverSettings/roster");
       });
     }
 
@@ -455,6 +555,8 @@ export default function App() {
     if (firebaseConfigMode === "cloud" && firestoreInstance) {
       setDoc(doc(firestoreInstance, "handoverSettings", "roster"), { list: updated }).catch(err => {
         console.error("Failed to sync personnel removal to cloud", err);
+        addNotification(`⚠️ Failed to sync personnel removal to cloud: Missing or insufficient permissions. Please make sure your Firestore Security Rules allow read/write access to "/handoverSettings/roster" and "/handoverSystem/*".`, "warning");
+        handleFirestoreError(err, OperationType.WRITE, "handoverSettings/roster");
       });
     }
 
@@ -490,6 +592,21 @@ export default function App() {
 
   // State log edit
   const [logText, setLogText] = useState("");
+
+  // Shift completion requirements
+  const isChecklistComplete = !!(
+    dbState?.signoffChecklist?.blockersReviewed &&
+    dbState?.signoffChecklist?.systemsNormal &&
+    dbState?.signoffChecklist?.credsTransferred
+  );
+  const isNotesFilled = !!(logText || "").trim();
+  const areLeadsSet = !!(dbState?.outgoingLead?.trim() && dbState?.incomingLead?.trim());
+  const isSignOffCompleteReady = isChecklistComplete && isNotesFilled && areLeadsSet;
+
+  // States for carrying over/pulling previous shift tasks
+  const [selectedHistoryIdForPull, setSelectedHistoryIdForPull] = useState<string>("");
+  const [showPullTasksPanel, setShowPullTasksPanel] = useState<boolean>(false);
+  const [selectedPulledTaskIds, setSelectedPulledTaskIds] = useState<Record<string, boolean>>({});
 
   // Notifications state
   const [notifications, setNotifications] = useState<NotificationItem[]>([
@@ -589,6 +706,7 @@ export default function App() {
       spaceName?: string;
       operatorName?: string;
       signeeName?: string;
+      handoverRecord?: HandoverHistoryItem;
     };
   }) => {
     const { event, message, type, details } = args;
@@ -611,85 +729,246 @@ export default function App() {
 
     // 2. Real & Simulated Transactional Email dispatch
     if (pref.email) {
-      const emailSubject = `[Drilling Operations Portal] ${
-        event === "taskAssignment" ? "Task Assignment Event Alert" :
-        event === "overdueAlert" ? "URGENT OVERDUE ACTION REQUIRED" :
-        event === "handoverSignoff" ? "Shift Handover Approved & Signed" :
-        "Global Roster System Event"
-      }`;
+      // Avoid double/spam emails for minor edits. Only send unified shift log emails on actual clicked Sign-off instances.
+      if (event === "handoverSignoff" && !details?.handoverRecord) {
+        console.log("Skipping email dispatch for lead updates before final signoff.");
+        return;
+      }
 
-      // Build beautiful responsive HTML layout
-      const emailHtml = `
-        <div style="font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f8fafc; padding: 24px 16px; color: #1e293b; direction: ltr; text-align: left;">
-          <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-            <!-- Subject/Title Header -->
-            <div style="background-color: #0f172a; padding: 24px; color: #ffffff; text-align: left;">
-              <h1 style="margin: 0; font-size: 18px; font-weight: 800; text-transform: uppercase;">Drilling Operations Portal</h1>
-              <p style="margin: 4px 0 0 0; font-size: 10px; color: #94a3b8; font-family: monospace;">REAL-TIME SYSTEM RELAY</p>
-            </div>
+      let emailSubject = "";
+      let emailHtml = "";
 
-            <!-- Content Area -->
-            <div style="padding: 24px;">
-              <h2 style="margin: 0 0 16px 0; font-size: 14px; font-weight: 700; color: #0f172a;">${emailSubject}</h2>
+      if (event === "handoverSignoff" && details?.handoverRecord) {
+        const hr = details.handoverRecord;
+        emailSubject = `[COMPLETE HANDOVER ARCHIVE] Shift Handover Completed by ${hr.outgoingLead} ➔ ${hr.incomingLead}`;
+        
+        const hrTasks = hr.tasks || [];
+        const hrBacklogs = hr.backlog || [];
+
+        let tasksRows = "";
+        if (hrTasks.length === 0) {
+          tasksRows = `<tr><td colspan="4" style="padding: 12px; text-align: center; color: #64748b; font-style: italic; border-top: 1px solid #e2e8f0;">No tasks registered this shift cycle.</td></tr>`;
+        } else {
+          hrTasks.forEach((t) => {
+            const statusBadge = t.completed 
+              ? `<span style="background-color: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; border: 1px solid #a7f3d0;">COMPLETED</span>`
+              : `<span style="background-color: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; border: 1px solid #fde68a;">OPEN / CARRIED OVER</span>`;
+            
+            const pColor = t.priority === "High" ? "#dc2626" : t.priority === "Medium" ? "#d97706" : "#2563eb";
+            const priorityBadge = `<span style="color: ${pColor}; font-weight: bold;">${t.priority}</span>`;
+            
+            tasksRows += `
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 8px; font-size: 12px; font-weight: 600; color: #1e293b; text-align: left;">${t.description}</td>
+                <td style="padding: 10px 8px; font-size: 11px; color: #475569; text-align: left;">${t.ownerName}</td>
+                <td style="padding: 10px 8px; font-size: 11px; text-align: center;">${priorityBadge}</td>
+                <td style="padding: 10px 8px; font-size: 11px; text-align: right;">${statusBadge}</td>
+              </tr>
+            `;
+          });
+        }
+
+        let backlogRows = "";
+        if (hrBacklogs.length === 0) {
+          backlogRows = `<tr><td colspan="3" style="padding: 12px; text-align: center; color: #64748b; font-style: italic; border-top: 1px solid #e2e8f0;">No backlog/long-term issues registered.</td></tr>`;
+        } else {
+          hrBacklogs.forEach((b) => {
+            const pColor = b.priority === "High" ? "#dc2626" : b.priority === "Medium" ? "#d97706" : "#2563eb";
+            const priorityBadge = `<span style="color: ${pColor}; font-weight: bold;">${b.priority}</span>`;
+            backlogRows += `
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 8px; font-size: 12px; font-weight: 600; color: #1e293b; text-align: left;">${b.description}</td>
+                <td style="padding: 10px 8px; font-size: 11px; color: #475569; text-align: left;">${b.ownerName}</td>
+                <td style="padding: 10px 8px; font-size: 11px; text-align: right;">${priorityBadge}</td>
+              </tr>
+            `;
+          });
+        }
+
+        emailHtml = `
+          <div style="font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f1f5f9; padding: 32px 16px; color: #1e293b; direction: ltr; text-align: left; line-height: 1.5;">
+            <div style="max-width: 640px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);">
               
-              <div style="background-color: #f8fafc; border-left: 4px solid #4f46e5; border-radius: 4px; padding: 16px; margin-bottom: 24px; text-align: left; line-height: 1.6; font-size: 13px; color: #334155; border-top: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9;">
-                <strong>Event Message:</strong><br/>
-                ${message}
+              <!-- Subject/Title Header -->
+              <div style="background-color: #0f172a; padding: 28px 24px; color: #ffffff; text-align: left; border-bottom: 4px solid #10b981;">
+                <div style="margin-bottom: 8px;">
+                  <span style="background-color: #059669; color: #ffffff; font-size: 10px; font-weight: bold; padding: 4px 8px; border-radius: 100px; text-transform: uppercase; font-family: monospace; letter-spacing: 0.05em;">✓ Shift Certified</span>
+                </div>
+                <h1 style="margin: 0; font-size: 20px; font-weight: 800; text-transform: uppercase; color: #ffffff; letter-spacing: -0.025em;">Drilling Handover Report</h1>
+                <p style="margin: 4px 0 0 0; font-size: 11px; color: #94a3b8; font-family: monospace; line-height: 1;">SPACE: ${details.spaceName || 'Active Space'} • DATE: ${new Date(hr.date).toLocaleString()}</p>
               </div>
 
-              ${details && Object.keys(details).length > 0 ? `
-                <div style="margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
-                  <span style="display: block; font-size: 10px; font-weight: 800; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.05em; margin-bottom: 8px;">Structured Payload Details</span>
-                  <table style="width: 100%; border-collapse: collapse; font-size: 12px; font-family: monospace;">
+              <!-- Content Area -->
+              <div style="padding: 24px;">
+                
+                <!-- Section 1: Digital Signoff Summary Card -->
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                  <h3 style="margin: 0 0 12px 0; font-size: 12px; font-weight: 800; text-transform: uppercase; color: #475569; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">Digital Sign-Off Summary</h3>
+                  <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                     <tbody>
-                      ${details.taskName ? `
-                        <tr style="border-bottom: 1px solid #f1f5f9;">
-                          <td style="padding: 8px 0; color: #64748b; font-weight: 600;">TASK SPEC:</td>
-                          <td style="padding: 8px 0; color: #0f172a; font-weight: 700; text-align: right;">${details.taskName}</td>
-                        </tr>
-                      ` : ''}
-                      ${details.assignee ? `
-                        <tr style="border-bottom: 1px solid #f1f5f9;">
-                          <td style="padding: 8px 0; color: #64748b; font-weight: 600;">ASSIGNEE:</td>
-                          <td style="padding: 8px 0; color: #0f172a; font-weight: 700; text-align: right;">${details.assignee}</td>
-                        </tr>
-                      ` : ''}
-                      ${details.dueDate ? `
-                        <tr style="border-bottom: 1px solid #f1f5f9;">
-                          <td style="padding: 8px 0; color: #64748b; font-weight: 600;">DEADLINE:</td>
-                          <td style="padding: 8px 0; color: #0f172a; font-weight: 700; text-align: right;">${details.dueDate}</td>
-                        </tr>
-                      ` : ''}
-                      ${details.spaceName ? `
-                        <tr style="border-bottom: 1px solid #f1f5f9;">
-                          <td style="padding: 8px 0; color: #64748b; font-weight: 600;">SPACE ID:</td>
-                          <td style="padding: 8px 0; color: #0f172a; font-weight: 700; text-align: right;">${details.spaceName}</td>
-                        </tr>
-                      ` : ''}
-                      ${details.signeeName ? `
-                        <tr style="border-bottom: 1px solid #f1f5f9;">
-                          <td style="padding: 8px 0; color: #64748b; font-weight: 600;">AUTHORIZER:</td>
-                          <td style="padding: 8px 0; color: #0f172a; font-weight: 700; text-align: right;">${details.signeeName}</td>
-                        </tr>
-                      ` : ''}
+                      <tr>
+                        <td style="padding: 6px 0; color: #64748b; font-weight: 600; width: 45%;">Outgoing Shift Lead:</td>
+                        <td style="padding: 6px 0; color: #0f172a; font-weight: 700; text-align: right;">${hr.outgoingLead}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Incoming Counterpart:</td>
+                        <td style="padding: 6px 0; color: #0f172a; font-weight: 700; text-align: right;">${hr.incomingLead}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Authorized Signer:</td>
+                        <td style="padding: 6px 0; color: #10b981; font-weight: 800; text-align: right;">${hr.signedOffBy} [DIGITAL STAMP]</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Verification Standards:</td>
+                        <td style="padding: 6px 0; color: #047857; font-weight: 700; text-align: right;">100% COMPLETE PASS</td>
+                      </tr>
                     </tbody>
                   </table>
+                  
+                  <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #e2e8f0; font-size: 10px; color: #64748b; font-style: italic; line-height: 1.3;">
+                    Note: By entering the digital signature and committing this record, both operational parties verified and approved the complete safety status, mud properties, and active task register under high-pressure drilling protocols.
+                  </div>
                 </div>
-              ` : ''}
 
-              <!-- Action button link -->
-              <div style="margin-top: 24px; text-align: center;">
-                <a href="${window.location.origin}" style="display: inline-block; background-color: #4f46e5; color: #ffffff; padding: 12px 24px; font-weight: 700; font-size: 13px; text-decoration: none; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);">Open Portal Dashboard</a>
+                <!-- Section 2: Shift Chronicle Log -->
+                <div style="margin-bottom: 24px;">
+                  <h3 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 800; text-transform: uppercase; color: #475569; letter-spacing: 0.05em;">Operations Chronicle & Shift Log</h3>
+                  <div style="background-color: #faf5ff; border: 1px solid #e9d5ff; border-left: 4px solid #8b5cf6; border-radius: 6px; padding: 14px 16px; font-size: 13.5px; line-height: 1.6; color: #581c87; text-align: left;">
+                    "${hr.logText}"
+                  </div>
+                </div>
+
+                <!-- Section 3: Active Shift Task Register -->
+                <div style="margin-bottom: 24px;">
+                  <h3 style="margin: 0 0 10px 0; font-size: 12px; font-weight: 800; text-transform: uppercase; color: #475569; letter-spacing: 0.05em;">Active Shift Task Register</h3>
+                  <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                      <thead>
+                        <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                          <th style="padding: 10px 8px; font-weight: 700; color: #475569; text-align: left;">Task Description</th>
+                          <th style="padding: 10px 8px; font-weight: 700; color: #475569; text-align: left;">Owner</th>
+                          <th style="padding: 10px 8px; font-weight: 700; color: #475569; text-align: center;">Priority</th>
+                          <th style="padding: 10px 8px; font-weight: 700; color: #475569; text-align: right;">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${tasksRows}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Section 4: Shift Backlog Items -->
+                <div style="margin-bottom: 24px;">
+                  <h3 style="margin: 0 0 10px 0; font-size: 12px; font-weight: 800; text-transform: uppercase; color: #475569; letter-spacing: 0.05em;">Shift Backlog Registry</h3>
+                  <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                      <thead>
+                        <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                          <th style="padding: 10px 8px; font-weight: 700; color: #475569; text-align: left;">Backlog Description</th>
+                          <th style="padding: 10px 8px; font-weight: 700; color: #475569; text-align: left;">Owner</th>
+                          <th style="padding: 10px 8px; font-weight: 700; color: #475569; text-align: right;">Priority</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${backlogRows}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Action button link -->
+                <div style="margin-top: 28px; text-align: center;">
+                  <a href="${window.location.origin}" style="display: inline-block; background-color: #0f172a; color: #ffffff; padding: 12px 28px; font-weight: 700; font-size: 13px; text-decoration: none; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.25);">Launch Active Shift Dashboard</a>
+                </div>
+
+                <!-- Footer disclaimer -->
+                <p style="margin: 32px 0 0 0; font-size: 10.5px; color: #94a3b8; text-align: center; line-height: 1.5; border-top: 1px solid #e2e8f0; padding-top: 18px;">
+                  This is an officially certified transactional transmission dispatched to members assigned to shift operations. Real-world transactional delivery powered by Nodemailer SMTP Relay.
+                </p>
               </div>
-
-              <!-- Footer disclaimer -->
-              <p style="margin: 24px 0 0 0; font-size: 10px; color: #94a3b8; text-align: center; line-height: 1.5; border-top: 1px solid #e2e8f0; padding-top: 16px;">
-                You received this transmission because notification rules are configured on your account settings. This is an automated real-world transactional email sent using nodemailer.
-              </p>
             </div>
           </div>
-        </div>
-      `;
+        `;
+      } else {
+        emailSubject = `[Drilling Operations Portal] ${
+          event === "taskAssignment" ? "Task Assignment Event Alert" :
+          event === "overdueAlert" ? "URGENT OVERDUE ACTION REQUIRED" :
+          "Global Roster System Event"
+        }`;
+
+        emailHtml = `
+          <div style="font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f8fafc; padding: 24px 16px; color: #1e293b; direction: ltr; text-align: left;">
+            <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+              <!-- Subject/Title Header -->
+              <div style="background-color: #0f172a; padding: 24px; color: #ffffff; text-align: left;">
+                <h1 style="margin: 0; font-size: 18px; font-weight: 800; text-transform: uppercase;">Drilling Operations Portal</h1>
+                <p style="margin: 4px 0 0 0; font-size: 10px; color: #94a3b8; font-family: monospace;">REAL-TIME SYSTEM RELAY</p>
+              </div>
+
+              <!-- Content Area -->
+              <div style="padding: 24px;">
+                <h2 style="margin: 0 0 16px 0; font-size: 14px; font-weight: 700; color: #0f172a;">${emailSubject}</h2>
+                
+                <div style="background-color: #f8fafc; border-left: 4px solid #4f46e5; border-radius: 4px; padding: 16px; margin-bottom: 24px; text-align: left; line-height: 1.6; font-size: 13px; color: #334155; border-top: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9;">
+                  <strong>Event Message:</strong><br/>
+                  ${message}
+                </div>
+
+                ${details && Object.keys(details).length > 0 ? `
+                  <div style="margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+                    <span style="display: block; font-size: 10px; font-weight: 800; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.05em; margin-bottom: 8px;">Structured Payload Details</span>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; font-family: monospace;">
+                      <tbody>
+                        ${details.taskName ? `
+                          <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 8px 0; color: #64748b; font-weight: 600;">TASK SPEC:</td>
+                            <td style="padding: 8px 0; color: #0f172a; font-weight: 700; text-align: right;">${details.taskName}</td>
+                          </tr>
+                        ` : ''}
+                        ${details.assignee ? `
+                          <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 8px 0; color: #64748b; font-weight: 600;">ASSIGNEE:</td>
+                            <td style="padding: 8px 0; color: #0f172a; font-weight: 700; text-align: right;">${details.assignee}</td>
+                          </tr>
+                        ` : ''}
+                        ${details.dueDate ? `
+                          <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 8px 0; color: #64748b; font-weight: 600;">DEADLINE:</td>
+                            <td style="padding: 8px 0; color: #0f172a; font-weight: 700; text-align: right;">${details.dueDate}</td>
+                          </tr>
+                        ` : ''}
+                        ${details.spaceName ? `
+                          <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 8px 0; color: #64748b; font-weight: 600;">SPACE ID:</td>
+                            <td style="padding: 8px 0; color: #0f172a; font-weight: 700; text-align: right;">${details.spaceName}</td>
+                          </tr>
+                        ` : ''}
+                        ${details.signeeName ? `
+                          <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 8px 0; color: #64748b; font-weight: 600;">AUTHORIZER:</td>
+                            <td style="padding: 8px 0; color: #0f172a; font-weight: 700; text-align: right;">${details.signeeName}</td>
+                          </tr>
+                        ` : ''}
+                      </tbody>
+                    </table>
+                  </div>
+                ` : ''}
+
+                <!-- Action button link -->
+                <div style="margin-top: 24px; text-align: center;">
+                  <a href="${window.location.origin}" style="display: inline-block; background-color: #4f46e5; color: #ffffff; padding: 12px 24px; font-weight: 700; font-size: 13px; text-decoration: none; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);">Open Portal Dashboard</a>
+                </div>
+
+                <!-- Footer disclaimer -->
+                <p style="margin: 24px 0 0 0; font-size: 10px; color: #94a3b8; text-align: center; line-height: 1.5; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+                  You received this transmission because notification rules are configured on your account settings. This is an automated real-world transactional email sent using nodemailer.
+                </p>
+              </div>
+            </div>
+          </div>
+        `;
+      }
 
       const newEmail: SimulatedEmail = {
         id: `email-${Date.now()}-${Math.random()}`,
@@ -845,7 +1124,7 @@ export default function App() {
         });
       }
 
-      // Check if leads updated
+      // Leads updated info notifications
       if (dbState.outgoingLead !== prev.outgoingLead && prev.outgoingLead) {
         dispatchNotification({
           event: "handoverSignoff",
@@ -858,20 +1137,6 @@ export default function App() {
           event: "handoverSignoff",
           message: `Incoming Lead Counterpart aligned to: "${dbState.incomingLead}" in "${workspaceName}".`,
           type: "info"
-        });
-      }
-
-      // Check if history collection received a new sign-off record
-      if (dbState.history.length > prev.history.length) {
-        const record = dbState.history[0];
-        dispatchNotification({
-          event: "handoverSignoff",
-          message: `Handover signed off by ${record.signedOffBy}. Shift rota successfully archived for space "${workspaceName}".`,
-          type: "success",
-          details: {
-            signeeName: record.signedOffBy,
-            spaceName: workspaceName
-          }
         });
       }
     }
@@ -896,7 +1161,8 @@ export default function App() {
             projectId: apiConfig.projectId,
             apiKey: apiConfig.apiKey,
             authDomain: apiConfig.authDomain || "",
-            appId: apiConfig.appId || ""
+            appId: apiConfig.appId || "",
+            firestoreDatabaseId: apiConfig.firestoreDatabaseId || ""
           };
           setIsEnvConfigured(true);
           setConfigKeys(keys);
@@ -912,13 +1178,15 @@ export default function App() {
         const envApiKey = env.VITE_FIREBASE_API_KEY;
         const envAuthDomain = env.VITE_FIREBASE_AUTH_DOMAIN || "";
         const envAppId = env.VITE_FIREBASE_APP_ID || "";
+        const envDatabaseId = env.VITE_FIREBASE_DATABASE_ID || "";
 
         if (envProjectId && envApiKey) {
           const keys = {
             projectId: envProjectId,
             apiKey: envApiKey,
             authDomain: envAuthDomain,
-            appId: envAppId
+            appId: envAppId,
+            firestoreDatabaseId: envDatabaseId
           };
           setIsEnvConfigured(true);
           setConfigKeys(keys);
@@ -965,6 +1233,7 @@ export default function App() {
 
   // Tab state
   const [activeTab, setActiveTab] = useState<"tracker" | "analytics">("tracker");
+  const [isRulesCopied, setIsRulesCopied] = useState(false);
 
   // Synchronize DB states with Firebase if active
   const triggerFirebaseWrite = async (updatedState: HandoverState) => {
@@ -977,6 +1246,7 @@ export default function App() {
           type: "error",
           text: `Write Error: ${err.message}. Please verify Firestore database exists & security policies are writeable.`
         });
+        handleFirestoreError(err, OperationType.WRITE, `handoverSystem/${currentSelectedWorkspaceId}`);
       }
     }
   };
@@ -997,7 +1267,9 @@ export default function App() {
         });
       }
 
-      const db = getFirestore(app);
+      const db = config.firestoreDatabaseId 
+        ? getFirestore(app, config.firestoreDatabaseId)
+        : getFirestore(app);
       setFirestoreInstance(db);
       setFirebaseConfigMode("cloud");
       setIsSettingsOpen(false); // compress panel on success
@@ -1044,6 +1316,7 @@ export default function App() {
         setWorkspaces(loadedWorkspaces);
       }).catch(err => {
         console.error("Failed to load existing cloud workspaces list", err);
+        handleFirestoreError(err, OperationType.LIST, "handoverSystem");
       });
 
     } catch (err: any) {
@@ -1134,6 +1407,7 @@ export default function App() {
             });
           }).catch(writeErr => {
             console.error("Initial Firestore document push failed", writeErr);
+            handleFirestoreError(writeErr, OperationType.WRITE, `handoverSystem/${currentSelectedWorkspaceId}`);
           });
           return current;
         });
@@ -1144,6 +1418,11 @@ export default function App() {
         type: "error",
         text: `Permission / Connection Denied: ${err.message}. Ensure your Rules match 'handoverSystem/{workspaceId}' and your keys are correct.`
       });
+      try {
+        handleFirestoreError(err, OperationType.GET, `handoverSystem/${currentSelectedWorkspaceId}`);
+      } catch (e) {
+        // Just let it log
+      }
     });
 
     return () => {
@@ -1241,6 +1520,7 @@ export default function App() {
       }).catch(err => {
         console.error("Failed to provision new cloud workspace", err);
         setWorkspaceCreateError(`Failed to write new workspace: ${err.message}`);
+        handleFirestoreError(err, OperationType.WRITE, `handoverSystem/${id}`);
       });
     } else {
       // In local demo mode:
@@ -1298,6 +1578,7 @@ export default function App() {
         addNotification(`Deleted workspace "${wsName}" from Cloud Sync.`, "success");
       }).catch(err => {
         console.error("Failed to delete workspace doc from Firestore", err);
+        handleFirestoreError(err, OperationType.DELETE, `handoverSystem/${id}`);
       });
     }
 
@@ -1327,6 +1608,9 @@ export default function App() {
         break;
       case "person":
         handleRemovePersonnel(id, name);
+        break;
+      case "history":
+        handleDeleteHistory(id);
         break;
     }
   };
@@ -1516,6 +1800,37 @@ export default function App() {
     });
   };
 
+  const handlePullPreviousTasks = (tasksToPull: HandoverTask[]) => {
+    if (tasksToPull.length === 0) return;
+
+    const clonedTasks: HandoverTask[] = tasksToPull.map(t => ({
+      ...t,
+      id: `task-pulled-${Date.now()}-${Math.random()}`,
+      completed: false
+    }));
+
+    updateWorkspaceState((prev) => ({
+      ...prev,
+      tasks: [...clonedTasks, ...prev.tasks]
+    }));
+
+    dispatchNotification({
+      event: "taskAssignment",
+      message: `Pulled ${tasksToPull.length} tasks from previous shift into the active operational tracker.`,
+      type: "info",
+      details: {
+        taskName: tasksToPull[0]?.description || "Multiple Pulled Tasks",
+        assignee: tasksToPull[0]?.ownerName || "Multiple Specialists"
+      }
+    });
+
+    addNotification(`Successfully pulled and loaded ${tasksToPull.length} tasks into the active shift tracker!`, "success");
+    
+    setSelectedHistoryIdForPull("");
+    setSelectedPulledTaskIds({});
+    setShowPullTasksPanel(false);
+  };
+
   const handleToggleTask = (taskId: string) => {
     updateWorkspaceState((prev) => ({
       ...prev,
@@ -1570,6 +1885,14 @@ export default function App() {
     }));
   };
 
+  const handleDeleteHistory = (historyId: string) => {
+    updateWorkspaceState((prev) => ({
+      ...prev,
+      history: prev.history.filter((h) => h.id !== historyId)
+    }));
+    addNotification("Historical handover archive record deleted successfully.", "success");
+  };
+
   const handlePromoteBacklog = (backlogId: string) => {
     const item = dbState.backlog.find(b => b.id === backlogId);
     if (!item) return;
@@ -1606,22 +1929,30 @@ export default function App() {
 
   // Handle Complete Handover Sign-off
   const handleCompleteSignOff = () => {
-    if (!dbState.outgoingLead.trim()) {
-      alert("Please specify the Outgoing Shift Lead.");
-      return;
-    }
-    if (!dbState.incomingLead.trim()) {
-      alert("Please specify the Incoming Counterpart.");
-      return;
-    }
-    if (!logText.trim()) {
-      alert("Please provide the shift log text in the field below before completing the Handover.");
+    const isLeadOut = !!dbState.outgoingLead?.trim();
+    const isLeadIn = !!dbState.incomingLead?.trim();
+    const checklist = dbState.signoffChecklist;
+    const isChecklistComplete = !!(checklist?.blockersReviewed && checklist?.systemsNormal && checklist?.credsTransferred);
+    const isNotesFilled = !!(logText || "").trim();
+
+    if (!isLeadOut || !isLeadIn || !isChecklistComplete || !isNotesFilled) {
+      const missing = [];
+      if (!isLeadOut) missing.push("Outgoing Shift Lead");
+      if (!isLeadIn) missing.push("Incoming Counterpart");
+      if (!checklist?.blockersReviewed) missing.push("Direct Counterpart Briefing");
+      if (!checklist?.systemsNormal) missing.push("Outstanding Tasks & Backlog Review");
+      if (!checklist?.credsTransferred) missing.push("Master & Important Documents Handover");
+      if (!isNotesFilled) missing.push("Handover Summary Notes");
+
+      const warnMsg = `Verification incomplete! Missing: ${missing.join(", ")}.`;
+      addNotification(`⚠️ ${warnMsg}`, "warning");
+      alert(`Cannot complete handover sign-off.\n\nPlease resolve the following mandatory requirements:\n${missing.map(m => `• ${m}`).join("\n")}`);
       return;
     }
 
-    // Capture counts of tasks and backlog
-    const activeRemaining = dbState.tasks.filter(t => !t.completed).length;
-    const backlogCount = dbState.backlog.filter(b => !b.completed).length;
+    // Capture precise, non-stale copies of current active tasks and backlog
+    const currentTasks = [...dbState.tasks];
+    const currentBacklog = [...dbState.backlog];
 
     const newHistoryItem: HandoverHistoryItem = {
       id: `history-${Date.now()}`,
@@ -1629,9 +1960,11 @@ export default function App() {
       outgoingLead: dbState.outgoingLead,
       incomingLead: dbState.incomingLead,
       logText: logText,
-      tasksCount: dbState.tasks.length,
-      backlogCount: dbState.backlog.length,
-      signedOffBy: dbState.outgoingLead
+      tasksCount: currentTasks.length,
+      backlogCount: currentBacklog.length,
+      signedOffBy: dbState.outgoingLead,
+      tasks: currentTasks,
+      backlog: currentBacklog
     };
 
     // Advanced rotation logic: 
@@ -1653,6 +1986,19 @@ export default function App() {
         },
         latestLog: ""
       };
+    });
+
+    // Dispatch the single unified complete handover transaction notification/email immediately
+    const workspaceName = workspaces.find(w => w.id === currentSelectedWorkspaceId)?.name || currentSelectedWorkspaceId;
+    dispatchNotification({
+      event: "handoverSignoff",
+      message: `Handover signed off by ${newHistoryItem.signedOffBy}. Shift rota successfully archived for space "${workspaceName}".`,
+      type: "success",
+      details: {
+        signeeName: newHistoryItem.signedOffBy,
+        spaceName: workspaceName,
+        handoverRecord: newHistoryItem
+      }
     });
 
     setLogText("");
@@ -1789,7 +2135,8 @@ export default function App() {
                 <h3 className="font-bold text-slate-900 font-display text-base">
                   Delete {deleteConfirmation.type === "workspace" ? "Handover Space" : 
                           deleteConfirmation.type === "task" ? "Active Task" : 
-                          deleteConfirmation.type === "backlog" ? "Backlog Task" : "Roster Entry"}?
+                          deleteConfirmation.type === "backlog" ? "Backlog Task" : 
+                          deleteConfirmation.type === "history" ? "Handover Archive" : "Roster Entry"}?
                 </h3>
                 <p className="text-xs text-slate-500 font-mono">
                   Target: <span className="text-slate-800 font-bold">{deleteConfirmation.name}</span>
@@ -1809,6 +2156,9 @@ export default function App() {
               )}
               {deleteConfirmation.type === "person" && (
                 "This will remove the selected operator from the global personnel roster references."
+              )}
+              {deleteConfirmation.type === "history" && (
+                "Are you absolutely sure you want to delete this completed shift handover record from the historical archives? This represents an irreversible deletion: the details, tasks active at sign-off, backlog snapshot, and chronological shift logs will be permanently erased."
               )}
             </p>
 
@@ -2191,7 +2541,7 @@ export default function App() {
                 </div>
 
                 {isEnvConfigured ? (
-                  <div className={`${activeTheme.isDark ? 'bg-slate-900 border-slate-800' : 'bg-indigo-50/70 border border-indigo-200'} rounded-lg p-5 space-y-3.5 shadow-2xs`}>
+                  <div className={`${activeTheme.isDark ? 'bg-slate-900 border-slate-800' : 'bg-indigo-50/70 border border-indigo-200'} rounded-lg p-5 space-y-4 shadow-2xs`}>
                     <div className={`flex items-center gap-2 ${activeTheme.cardTitleText} font-bold text-xs font-mono uppercase tracking-wider`}>
                       <span className="relative flex h-2.5 w-2.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -2212,6 +2562,46 @@ export default function App() {
                         <span className={`font-bold ${activeTheme.accentText}`}>Enterprise Direct Link</span>
                       </div>
                     </div>
+
+                    <div className={`rounded-md p-3 ${activeTheme.isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border border-slate-200'} space-y-2 text-left`}>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-[10px] font-extrabold font-mono tracking-wider ${activeTheme.cardTitleText} uppercase`}>
+                          Required Firestore Security Rules
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const rulesStr = `rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /handoverSystem/{workspaceId} {\n      allow read, write: if true;\n    }\n    match /handoverSettings/{settingsId} {\n      allow read, write: if true;\n    }\n  }\n}`;
+                            navigator.clipboard.writeText(rulesStr).then(() => {
+                              setIsRulesCopied(true);
+                              setTimeout(() => setIsRulesCopied(false), 2000);
+                              addNotification("Firestore Rules copied to clipboard!", "success");
+                            });
+                          }}
+                          className={`flex items-center gap-1 text-[9px] font-bold py-1 px-2 rounded border ${isRulesCopied ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600' : (activeTheme.isDark ? 'border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-400' : 'border-slate-300 hover:bg-slate-100 bg-white text-slate-600')} transition-colors cursor-pointer`}
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>{isRulesCopied ? "Copied!" : "Copy Rules"}</span>
+                        </button>
+                      </div>
+                      <p className={`text-[10px] ${activeTheme.cardSubText} leading-relaxed`}>
+                        If you encounter <strong>"Missing or insufficient permissions"</strong> when adding personnel or items, make sure these rules are published in your Firebase Rules console.
+                      </p>
+                      <pre className="text-[9px] font-mono p-2 rounded bg-slate-900 text-slate-300 overflow-x-auto select-all leading-normal">
+{`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /handoverSystem/{workspaceId} {
+      allow read, write: if true;
+    }
+    match /handoverSettings/{settingsId} {
+      allow read, write: if true;
+    }
+  }
+}`}
+                      </pre>
+                    </div>
+
                     <div className={`pt-2.5 border-t ${activeTheme.cardBorder} flex justify-end`}>
                       <button
                         type="button"
@@ -3140,10 +3530,194 @@ export default function App() {
 
               {/* Add Active Task Form */}
               <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl p-4 m-4 space-y-3`}>
-                <h4 className={`text-xs font-bold uppercase tracking-wider ${activeTheme.accentText} font-mono flex items-center gap-1.5`}>
-                  <Plus className="w-3.5 h-3.5" />
-                  Add Shift Task to Current Cycle
-                </h4>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2">
+                  <h4 className={`text-xs font-bold uppercase tracking-wider ${activeTheme.accentText} font-mono flex items-center gap-1.5`}>
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Shift Task to Current Cycle
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => setShowPullTasksPanel(!showPullTasksPanel)}
+                    className="px-2.5 py-1 text-[10px] font-bold rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-indigo-400 font-mono inline-flex items-center gap-1.5 border border-indigo-200/50 cursor-pointer shadow-3xs transition-all"
+                  >
+                    <History className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                    {showPullTasksPanel ? "Close Carry-over Panel" : "🔌 Carry-over Past Shift Tasks"}
+                  </button>
+                </div>
+
+                {showPullTasksPanel && (
+                  <div className={`p-4 border ${activeTheme.cardBorder} rounded-lg bg-slate-50/50 dark:bg-slate-900/40 space-y-4`}>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b pb-3">
+                      <div>
+                        <h5 className={`text-xs font-bold ${activeTheme.cardTitleText} flex items-center gap-1.5`}>
+                          🔄 Select Previous Shift Handover
+                        </h5>
+                        <p className={`text-[10.5px] ${activeTheme.cardSubText}`}>
+                          Carry over uncompleted or critical tasks from a past operational cycle.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={selectedHistoryIdForPull}
+                          onChange={(e) => {
+                            const newId = e.target.value;
+                            setSelectedHistoryIdForPull(newId);
+                            const selectedHandover = dbState.history.find(h => h.id === newId) || PRESET_MOCK_HANDOVERS.find(h => h.id === newId);
+                            const tList = selectedHandover?.tasks || [];
+                            const initialSelection: Record<string, boolean> = {};
+                            tList.forEach(t => {
+                              initialSelection[t.id] = true;
+                            });
+                            setSelectedPulledTaskIds(initialSelection);
+                          }}
+                          className={`${activeTheme.inputBg} border rounded px-3 py-1.5 text-xs outline-none w-64 shadow-2xs font-sans cursor-pointer`}
+                        >
+                          <option value="">-- Choose past handover shift --</option>
+                          
+                          {dbState.history.length > 0 && (
+                            <optgroup label="Workspace Saved Handovers">
+                              {dbState.history.map(item => {
+                                const localDate = new Date(item.date).toLocaleDateString([], {
+                                  month: "short",
+                                  day: "numeric"
+                                });
+                                return (
+                                  <option key={item.id} value={item.id}>
+                                    Shift (Signed off by {item.outgoingLead}) - {localDate} ({item.tasksCount || item.tasks?.length || 0} tasks)
+                                  </option>
+                                );
+                              })}
+                            </optgroup>
+                          )}
+
+                          <optgroup label="Pre-loaded Operational Shift Templates">
+                            {PRESET_MOCK_HANDOVERS.map(preset => (
+                              <option key={preset.id} value={preset.id}>
+                                {preset.title} ({preset.tasks.length} tasks)
+                              </option>
+                            ))}
+                          </optgroup>
+                        </select>
+                      </div>
+                    </div>
+
+                    {selectedHistoryIdForPull ? (() => {
+                      const selectedHandover = dbState.history.find(h => h.id === selectedHistoryIdForPull) || PRESET_MOCK_HANDOVERS.find(h => h.id === selectedHistoryIdForPull);
+                      const tasksInHandover = selectedHandover?.tasks || [];
+                      const isPreset = PRESET_MOCK_HANDOVERS.some(h => h.id === selectedHistoryIdForPull);
+
+                      if (tasksInHandover.length === 0) {
+                        return (
+                          <div className={`p-6 text-center ${activeTheme.cardSubText} border ${activeTheme.cardBorder} rounded-lg bg-orange-50/10`}>
+                            <AlertTriangle className="w-5 h-5 mx-auto text-amber-500 mb-1" />
+                            <p className="text-xs font-semibold text-amber-500">No raw tasks found inside this historical trace.</p>
+                            <p className="text-[10px] opacity-80 mt-1">This shift log was recorded prior to the database persistence upgrades. Please try one of our pre-loaded template shifts in the dropdown to test!</p>
+                          </div>
+                        );
+                      }
+
+                      const selectedCount = Object.values(selectedPulledTaskIds).filter(Boolean).length;
+
+                      return (
+                        <div className="space-y-3.5">
+                          <div className="flex items-center justify-between text-[11px] font-semibold">
+                            <span className={activeTheme.cardSubText}>
+                              Showing {tasksInHandover.length} tasks recorded on {isPreset ? 'preset archive' : 'live logs'}.
+                            </span>
+                            
+                            <div className="flex items-center gap-4">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const allSelected = Object.keys(selectedPulledTaskIds).length === tasksInHandover.length && Object.values(selectedPulledTaskIds).every(Boolean);
+                                  const nextSelection: Record<string, boolean> = {};
+                                  if (!allSelected) {
+                                    tasksInHandover.forEach(t => { nextSelection[t.id] = true; });
+                                  }
+                                  setSelectedPulledTaskIds(nextSelection);
+                                }}
+                                className="text-indigo-600 hover:text-indigo-850 dark:text-indigo-400 dark:hover:text-indigo-300 font-mono text-[10px] cursor-pointer"
+                              >
+                                {Object.values(selectedPulledTaskIds).filter(Boolean).length === tasksInHandover.length ? "Deselect All" : "Select All"}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className={`border ${activeTheme.cardBorder} rounded-lg bg-white dark:bg-slate-900 overflow-hidden divide-y ${activeTheme.cardBorder} shadow-3xs`}>
+                            {tasksInHandover.map(task => {
+                              const isChecked = !!selectedPulledTaskIds[task.id];
+                              return (
+                                <div
+                                  key={task.id}
+                                  onClick={() => setSelectedPulledTaskIds(prev => ({ ...prev, [task.id]: !prev[task.id] }))}
+                                  className={`flex items-start gap-3 p-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer text-left text-xs ${isChecked ? 'bg-indigo-50/20 dark:bg-indigo-950/20' : ''}`}
+                                >
+                                  <div className="mt-0.5 shrink-0">
+                                    {isChecked ? (
+                                      <CheckSquare className="w-4 h-4 text-indigo-650 text-indigo-600" />
+                                    ) : (
+                                      <Square className={`w-4 h-4 ${activeTheme.cardSubText}`} />
+                                    )}
+                                  </div>
+                                  <div className="flex-1 space-y-0.5">
+                                    <p className={`font-medium ${isChecked ? 'text-indigo-950 dark:text-indigo-250 font-semibold' : activeTheme.cardTitleText}`}>
+                                      {task.description}
+                                    </p>
+                                    <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
+                                      <span className="px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-850 font-sans font-semibold text-slate-650 dark:text-slate-350">{task.ownerName}</span>
+                                      <span>•</span>
+                                      <span className={`font-bold ${
+                                        task.priority === "High" ? "text-rose-500" :
+                                        task.priority === "Medium" ? "text-amber-500" : "text-indigo-500"
+                                      }`}>{task.priority} Priority</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="flex justify-end gap-2.5 pt-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedHistoryIdForPull("");
+                                setSelectedPulledTaskIds({});
+                              }}
+                              className={`px-3 py-1.5 border border-slate-300 rounded text-xs text-slate-605 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer`}
+                            >
+                              Reset
+                            </button>
+                            <button
+                              type="button"
+                              disabled={selectedCount === 0}
+                              onClick={() => {
+                                const selectedTasks = tasksInHandover.filter(t => selectedPulledTaskIds[t.id]);
+                                handlePullPreviousTasks(selectedTasks);
+                              }}
+                              className={`px-4 py-1.5 font-bold rounded text-xs select-none transition-all flex items-center gap-1.5 cursor-pointer ${
+                                selectedCount === 0
+                                  ? "bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed opacity-50"
+                                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs"
+                              }`}
+                            >
+                              <FileCheck className="w-3.5 h-3.5" />
+                              Pull {selectedCount} Selected Tasks into Active Cycle
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })() : (
+                      <div className={`p-6 text-center border ${activeTheme.cardBorder} rounded-lg bg-indigo-50/5`}>
+                        <History className={`w-8 h-8 mx-auto ${activeTheme.cardSubText} mb-2 opacity-50`} />
+                        <p className={`text-xs font-semibold ${activeTheme.cardSubText}`}>Select a previous handover or preloaded template above to begin.</p>
+                        <p className="text-[10px] text-slate-400 mt-1">Carried-over tasks are added directly to the active shift register with pending status.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <form onSubmit={handleAddTask} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                   <div className="md:col-span-5 space-y-1">
                     <label className={`text-[10px] font-bold ${activeTheme.cardSubText} uppercase tracking-wide block`}>Task Description</label>
@@ -3783,11 +4357,35 @@ export default function App() {
                     />
                   </div>
 
+                  {!isSignOffCompleteReady && (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs space-y-1.5 text-left animate-in fade-in duration-200">
+                      <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                        <span>Sign-off Warning Checklist</span>
+                      </div>
+                      <p className={`text-[10px] ${activeTheme.cardSubText} leading-relaxed`}>
+                        Please satisfy the following pending requirements to authorize the handover:
+                      </p>
+                      <ul className="text-[10px] list-disc list-inside space-y-0.5 text-amber-700 dark:text-amber-400 font-mono">
+                        {!dbState?.outgoingLead?.trim() && <li>Select Outgoing Shift Lead</li>}
+                        {!dbState?.incomingLead?.trim() && <li>Select Incoming Counterpart</li>}
+                        {!dbState?.signoffChecklist?.blockersReviewed && <li>Check "Direct Counterpart Briefing Completed"</li>}
+                        {!dbState?.signoffChecklist?.systemsNormal && <li>Check "Outstanding Tasks & High-Priority Backlog Noticed"</li>}
+                        {!dbState?.signoffChecklist?.credsTransferred && <li>Check "Master & Important Documents Handovered"</li>}
+                        {!logText.trim() && <li>Write Handover Summary Notes</li>}
+                      </ul>
+                    </div>
+                  )}
+
                   <div className="pt-2">
                     <button
                       type="button"
                       onClick={handleCompleteSignOff}
-                      className="w-full py-2.5 bg-emerald-600 font-bold hover:bg-emerald-700 text-white rounded text-xs leading-none transition-colors shadow-xs inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                      className={`w-full py-2.5 font-bold rounded text-xs leading-none transition-colors shadow-xs inline-flex items-center justify-center gap-1.5 cursor-pointer ${
+                        isSignOffCompleteReady
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                          : "bg-amber-600/20 hover:bg-amber-600/30 text-amber-700 dark:text-amber-400 border border-dashed border-amber-500/30"
+                      }`}
                     >
                       <FileCheck className="w-4 h-4" />
                       Acknowledge & Save Handover
@@ -3839,9 +4437,26 @@ export default function App() {
                           <span className={`font-mono text-[9px] font-bold ${activeTheme.cardSubText}`}>
                             {localDate} @ {localTime}
                           </span>
-                          <span className="px-1.5 py-0.5 rounded text-[8px] bg-emerald-50/10 text-emerald-550 text-emerald-500 font-bold border border-emerald-500/20 uppercase font-mono leading-none">
-                            Signed Off
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="px-1.5 py-0.5 rounded text-[8px] bg-emerald-50/10 text-emerald-550 text-emerald-550 text-emerald-500 font-bold border border-emerald-500/20 uppercase font-mono leading-none">
+                              Signed Off
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeleteConfirmation({
+                                  isOpen: true,
+                                  type: "history",
+                                  id: record.id,
+                                  name: `${record.outgoingLead} ➔ ${record.incomingLead} (${localDate})`
+                                });
+                              }}
+                              className="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded transition-colors cursor-pointer"
+                              title="Delete shift record"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
 
                         {/* Transition Flow Initials */}

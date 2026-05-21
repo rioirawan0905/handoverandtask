@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import nodemailer from "nodemailer";
+import fs from "fs";
 
 async function startServer() {
   const app = express();
@@ -64,16 +65,35 @@ async function startServer() {
 
   // API Route to securely query and yield operational Firebase details without baking secrets in build files
   app.get("/api/config", (req, res) => {
-    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || "";
-    const apiKey = process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY || "";
-    const authDomain = process.env.VITE_FIREBASE_AUTH_DOMAIN || process.env.FIREBASE_AUTH_DOMAIN || "";
-    const appId = process.env.VITE_FIREBASE_APP_ID || process.env.FIREBASE_APP_ID || "";
+    let projectId = process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || "";
+    let apiKey = process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY || "";
+    let authDomain = process.env.VITE_FIREBASE_AUTH_DOMAIN || process.env.FIREBASE_AUTH_DOMAIN || "";
+    let appId = process.env.VITE_FIREBASE_APP_ID || process.env.FIREBASE_APP_ID || "";
+    let firestoreDatabaseId = process.env.VITE_FIREBASE_DATABASE_ID || "";
+
+    try {
+      const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+      if (fs.existsSync(configPath)) {
+        const fileContent = fs.readFileSync(configPath, "utf-8");
+        const parsed = JSON.parse(fileContent);
+        if (parsed.projectId) {
+          projectId = projectId || parsed.projectId;
+          apiKey = apiKey || parsed.apiKey;
+          authDomain = authDomain || parsed.authDomain;
+          appId = appId || parsed.appId;
+          firestoreDatabaseId = firestoreDatabaseId || parsed.firestoreDatabaseId || "";
+        }
+      }
+    } catch (e) {
+      console.error("Failed to read firebase-applet-config.json", e);
+    }
 
     res.json({
       projectId,
       apiKey,
       authDomain,
-      appId
+      appId,
+      firestoreDatabaseId
     });
   });
 
