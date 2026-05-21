@@ -179,58 +179,78 @@ interface HandoverState {
 const CURRENT_DATE_STR = "2026-05-20";
 const CURRENT_DATE_VAL = new Date(CURRENT_DATE_STR);
 
-export const PRESET_MOCK_HANDOVERS: { id: string; title: string; outgoingLead: string; incomingLead: string; date: string; logText: string; tasks: HandoverTask[] }[] = [
-  {
-    id: "preset-1",
-    title: "A-Shift Handover (BOP Stack Pressure Safety Testing)",
-    outgoingLead: "George Vance (Senior Operator)",
-    incomingLead: "Sarah Connor (Rig Manager)",
-    date: "2026-05-19T06:00:00Z",
-    logText: "Completed choke manifold lining, bleed valves balanced. Monitored mud line return viscosity.",
-    tasks: [
-      { id: "p1-t1", description: "Calibrate high-pressure transducer on Mud Pump 2 on Rig Floor", ownerName: "George Vance (Senior Operator)", priority: "High", dueDate: "2026-05-22", completed: false },
-      { id: "p1-t2", description: "Inspect accumulator backup nitrogen charge on BOP stack", ownerName: "Markus Webb (Lead Engineer)", priority: "High", dueDate: "2026-05-23", completed: false },
-      { id: "p1-t3", description: "Run shear rams functional stroke test telemetry diagnostics", ownerName: "Sarah Connor (Rig Manager)", priority: "Medium", dueDate: "2026-05-24", completed: false },
-      { id: "p1-t4", description: "Update main mud logger telemetry feed log files", ownerName: "George Vance (Senior Operator)", priority: "Low", dueDate: "2026-05-25", completed: false }
-    ]
-  },
-  {
-    id: "preset-2",
-    title: "B-Shift Handover (Stage 2 Sidetrack Drill-string Prep)",
-    outgoingLead: "Sarah Connor (Rig Manager)",
-    incomingLead: "Marcus Crane (Drill Superintendent)",
-    date: "2026-05-19T18:00:00Z",
-    logText: "Re-reamed sidetrack section down to 8,400 ft. Standby pressure normal. Driller key files updated.",
-    tasks: [
-      { id: "p2-t1", description: "Verify casing mud weights and fluid viscosity density calculations", ownerName: "Sarah Connor (Rig Manager)", priority: "High", dueDate: "2026-05-21", completed: false },
-      { id: "p2-t2", description: "Test emergency main kill switch safety valves on Powerhouse 4", ownerName: "Markus Webb (Lead Engineer)", priority: "High", dueDate: "2026-05-22", completed: false },
-      { id: "p2-t3", description: "Scribe drilling jar stroke indicators and torque values", ownerName: "George Vance (Senior Operator)", priority: "Medium", dueDate: "2026-05-23", completed: false }
-    ]
-  },
-  {
-    id: "preset-3",
-    title: "C-Shift Handover (Logistics & Wellhead Completion Prep)",
-    outgoingLead: "Marcus Crane (Drill Superintendent)",
-    incomingLead: "George Vance (Senior Operator)",
-    date: "2026-05-20T06:00:00Z",
-    logText: "Casing delivery verified. Supervised rig floor crew safety induction. Heavy lift plans cleared.",
-    tasks: [
-      { id: "p3-t1", description: "Supervise heavy casing string pick-up assembly and slip test", ownerName: "Marcus Crane (Drill Superintendent)", priority: "High", dueDate: "2026-05-22", completed: false },
-      { id: "p3-t2", description: "Check gas chromatograph calibration bottles and line filters", ownerName: "George Vance (Senior Operator)", priority: "Medium", dueDate: "2026-05-23", completed: false }
-    ]
-  }
+
+export const DEFAULT_PERSONNEL: PersonnelItem[] = [
+  { id: "p-1", name: "George Vance", title: "Senior Operator" },
+  { id: "p-2", name: "Sarah Connor", title: "Rig Manager" },
+  { id: "p-3", name: "Marcus Crane", title: "Drill Superintendent" },
+  { id: "p-4", name: "Markus Webb", title: "Lead Engineer" }
 ];
 
-export const DEFAULT_PERSONNEL: PersonnelItem[] = [];
-
-// Initial template mock data
+// Initial template mock data populated automatically with previous handover states and active tasks
 const DEFAULT_WORKSPACE_STATE: HandoverState = {
-  outgoingLead: "",
-  incomingLead: "",
+  outgoingLead: "George Vance (Senior Operator)",
+  incomingLead: "Sarah Connor (Rig Manager)",
   personnel: DEFAULT_PERSONNEL,
-  tasks: [],
-  backlog: [],
-  history: [],
+  tasks: [
+    { id: "init-t1", description: "Supervise heavy casing string pick-up assembly and slip test", ownerName: "Marcus Crane (Drill Superintendent)", priority: "High", dueDate: "2026-05-22", completed: false },
+    { id: "init-t2", description: "Check gas chromatograph calibration bottles and line filters", ownerName: "George Vance (Senior Operator)", priority: "Medium", dueDate: "2026-05-23", completed: false },
+    { id: "init-t3", description: "Calibrate high-pressure transducer on Mud Pump 2 on Rig Floor", ownerName: "George Vance (Senior Operator)", priority: "High", dueDate: "2026-05-22", completed: false },
+    { id: "init-t4", description: "Inspect accumulator backup nitrogen charge on BOP stack", ownerName: "Markus Webb (Lead Engineer)", priority: "High", dueDate: "2026-05-23", completed: false }
+  ],
+  backlog: [
+    { id: "init-b1", description: "Deep clean main rig deck and tool houses", ownerName: "Marcus Crane (Drill Superintendent)", priority: "Low", backlogDate: "2026-05-18", completed: false }
+  ],
+  history: [
+    {
+      id: "hist-preset-3",
+      date: "2026-05-20T06:00:00Z",
+      outgoingLead: "Marcus Crane (Drill Superintendent)",
+      incomingLead: "George Vance (Senior Operator)",
+      logText: "Casing delivery verified. Supervised rig floor crew safety induction. Heavy lift plans cleared.",
+      tasksCount: 2,
+      backlogCount: 0,
+      signedOffBy: "Marcus Crane (Drill Superintendent)",
+      tasks: [
+        { id: "p3-t1", description: "Supervise heavy casing string pick-up assembly and slip test", ownerName: "Marcus Crane (Drill Superintendent)", priority: "High", dueDate: "2026-05-22", completed: false },
+        { id: "p3-t2", description: "Check gas chromatograph calibration bottles and line filters", ownerName: "George Vance (Senior Operator)", priority: "Medium", dueDate: "2026-05-23", completed: false }
+      ],
+      backlog: []
+    },
+    {
+      id: "hist-preset-2",
+      date: "2026-05-19T18:00:00Z",
+      outgoingLead: "Sarah Connor (Rig Manager)",
+      incomingLead: "Marcus Crane (Drill Superintendent)",
+      logText: "Re-reamed sidetrack section down to 8,400 ft. Standby pressure normal. Driller key files updated.",
+      tasksCount: 3,
+      backlogCount: 0,
+      signedOffBy: "Sarah Connor (Rig Manager)",
+      tasks: [
+        { id: "p2-t1", description: "Verify casing mud weights and fluid viscosity density calculations", ownerName: "Sarah Connor (Rig Manager)", priority: "High", dueDate: "2026-05-21", completed: false },
+        { id: "p2-t2", description: "Test emergency main kill switch safety valves on Powerhouse 4", ownerName: "Markus Webb (Lead Engineer)", priority: "High", dueDate: "2026-05-22", completed: false },
+        { id: "p2-t3", description: "Scribe drilling jar stroke indicators and torque values", ownerName: "George Vance (Senior Operator)", priority: "Medium", dueDate: "2026-05-23", completed: false }
+      ],
+      backlog: []
+    },
+    {
+      id: "hist-preset-1",
+      date: "2026-05-19T06:00:00Z",
+      outgoingLead: "George Vance (Senior Operator)",
+      incomingLead: "Sarah Connor (Rig Manager)",
+      logText: "Completed choke manifold lining, bleed valves balanced. Monitored mud line return viscosity.",
+      tasksCount: 4,
+      backlogCount: 0,
+      signedOffBy: "George Vance (Senior Operator)",
+      tasks: [
+        { id: "p1-t1", description: "Calibrate high-pressure transducer on Mud Pump 2 on Rig Floor", ownerName: "George Vance (Senior Operator)", priority: "High", dueDate: "2026-05-22", completed: false },
+        { id: "p1-t2", description: "Inspect accumulator backup nitrogen charge on BOP stack", ownerName: "Markus Webb (Lead Engineer)", priority: "High", dueDate: "2026-05-23", completed: false },
+        { id: "p1-t3", description: "Run shear rams functional stroke test telemetry diagnostics", ownerName: "Sarah Connor (Rig Manager)", priority: "Medium", dueDate: "2026-05-24", completed: false },
+        { id: "p1-t4", description: "Update main mud logger telemetry feed log files", ownerName: "George Vance (Senior Operator)", priority: "Low", dueDate: "2026-05-25", completed: false }
+      ],
+      backlog: []
+    }
+  ],
   signoffChecklist: {
     blockersReviewed: false,
     systemsNormal: false,
@@ -393,6 +413,9 @@ export default function App() {
     id: string;
     name: string;
   } | null>(null);
+
+  // Expanded status for past handovers to view/carry over tasks
+  const [expandedHistoryIds, setExpandedHistoryIds] = useState<Record<string, boolean>>({});
 
   // Multi-workspace management state
   const [currentSelectedWorkspaceId, setCurrentSelectedWorkspaceId] = useState<string>(() => {
@@ -602,11 +625,6 @@ export default function App() {
   const isNotesFilled = !!(logText || "").trim();
   const areLeadsSet = !!(dbState?.outgoingLead?.trim() && dbState?.incomingLead?.trim());
   const isSignOffCompleteReady = isChecklistComplete && isNotesFilled && areLeadsSet;
-
-  // States for carrying over/pulling previous shift tasks
-  const [selectedHistoryIdForPull, setSelectedHistoryIdForPull] = useState<string>("");
-  const [showPullTasksPanel, setShowPullTasksPanel] = useState<boolean>(false);
-  const [selectedPulledTaskIds, setSelectedPulledTaskIds] = useState<Record<string, boolean>>({});
 
   // Notifications state
   const [notifications, setNotifications] = useState<NotificationItem[]>([
@@ -891,7 +909,7 @@ export default function App() {
           </div>
         `;
       } else {
-        emailSubject = `[Drilling Operations Portal] ${
+        emailSubject = `[Drilling Phase 5 Handover Portal] ${
           event === "taskAssignment" ? "Task Assignment Event Alert" :
           event === "overdueAlert" ? "URGENT OVERDUE ACTION REQUIRED" :
           "Global Roster System Event"
@@ -902,7 +920,7 @@ export default function App() {
             <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
               <!-- Subject/Title Header -->
               <div style="background-color: #0f172a; padding: 24px; color: #ffffff; text-align: left;">
-                <h1 style="margin: 0; font-size: 18px; font-weight: 800; text-transform: uppercase;">Drilling Operations Portal</h1>
+                <h1 style="margin: 0; font-size: 18px; font-weight: 800; text-transform: uppercase;">Drilling Phase 5 Handover Portal</h1>
                 <p style="margin: 4px 0 0 0; font-size: 10px; color: #94a3b8; font-family: monospace;">REAL-TIME SYSTEM RELAY</p>
               </div>
 
@@ -1433,21 +1451,35 @@ export default function App() {
   const handleWorkspaceChange = (workspaceId: string) => {
     setCurrentSelectedWorkspaceId(workspaceId);
     
-    // Immediately clear current UI tables/data to fulfill the 'clear the tables' directive
-    // until onSnapshot updates from Firestore
-    setDbState({
-      outgoingLead: "",
-      incomingLead: "",
-      tasks: [],
-      backlog: [],
-      history: [],
-      signoffChecklist: {
-        blockersReviewed: false,
-        systemsNormal: false,
-        credsTransferred: false,
-      },
-      latestLog: ""
-    });
+    // In cloud mode, immediately clear current UI tables/data to fulfill the 'clear the tables' directive
+    // until onSnapshot updates from Firestore.
+    // In demo/local mode, load from localStorage or DEFAULT_WORKSPACE_STATE right away to prevent race conditions.
+    if (firebaseConfigMode === "cloud") {
+      setDbState({
+        outgoingLead: "",
+        incomingLead: "",
+        tasks: [],
+        backlog: [],
+        history: [],
+        signoffChecklist: {
+          blockersReviewed: false,
+          systemsNormal: false,
+          credsTransferred: false,
+        },
+        latestLog: ""
+      });
+    } else {
+      const saved = localStorage.getItem(`handover_local_demo_db_${workspaceId}`);
+      if (saved) {
+        try {
+          setDbState(JSON.parse(saved));
+        } catch (e) {
+          setDbState(DEFAULT_WORKSPACE_STATE);
+        }
+      } else {
+        setDbState(DEFAULT_WORKSPACE_STATE);
+      }
+    }
   };
 
   const handleCreateNewWorkspace = (rawName: string) => {
@@ -1768,7 +1800,11 @@ export default function App() {
   const updateWorkspaceState = (updater: (prev: HandoverState) => HandoverState) => {
     setDbState((prev) => {
       const next = updater(prev);
-      triggerFirebaseWrite(next);
+      if (firebaseConfigMode === "cloud" && firestoreInstance) {
+        triggerFirebaseWrite(next);
+      } else if (firebaseConfigMode === "demo") {
+        localStorage.setItem(`handover_local_demo_db_${currentSelectedWorkspaceId}`, JSON.stringify(next));
+      }
       return next;
     });
   };
@@ -1800,10 +1836,42 @@ export default function App() {
     });
   };
 
-  const handlePullPreviousTasks = (tasksToPull: HandoverTask[]) => {
-    if (tasksToPull.length === 0) return;
+  const handleToggleTask = (taskId: string) => {
+    updateWorkspaceState((prev) => ({
+      ...prev,
+      tasks: prev.tasks.map((t) => t.id === taskId ? { ...t, completed: !t.completed } : t)
+    }));
+  };
 
-    const clonedTasks: HandoverTask[] = tasksToPull.map(t => ({
+  const handlePullSingleTask = (task: HandoverTask) => {
+    const clonedTask: HandoverTask = {
+      ...task,
+      id: `task-pulled-${Date.now()}-${Math.random()}`,
+      completed: false
+    };
+
+    updateWorkspaceState((prev) => ({
+      ...prev,
+      tasks: [clonedTask, ...prev.tasks]
+    }));
+
+    dispatchNotification({
+      event: "taskAssignment",
+      message: `Carried over task "${task.description}" from a past shift to active cycle.`,
+      type: "info",
+      details: {
+        taskName: task.description,
+        assignee: task.ownerName
+      }
+    });
+
+    addNotification(`Task carried over successfully: "${task.description}"`, "success");
+  };
+
+  const handlePullAllTasks = (tasksToPull: HandoverTask[]) => {
+    if (!tasksToPull || tasksToPull.length === 0) return;
+
+    const cloned: HandoverTask[] = tasksToPull.map((t) => ({
       ...t,
       id: `task-pulled-${Date.now()}-${Math.random()}`,
       completed: false
@@ -1811,31 +1879,20 @@ export default function App() {
 
     updateWorkspaceState((prev) => ({
       ...prev,
-      tasks: [...clonedTasks, ...prev.tasks]
+      tasks: [...cloned, ...prev.tasks]
     }));
 
     dispatchNotification({
       event: "taskAssignment",
-      message: `Pulled ${tasksToPull.length} tasks from previous shift into the active operational tracker.`,
+      message: `Successfully carried over ${tasksToPull.length} tasks from a past operational shift.`,
       type: "info",
       details: {
-        taskName: tasksToPull[0]?.description || "Multiple Pulled Tasks",
-        assignee: tasksToPull[0]?.ownerName || "Multiple Specialists"
+        taskName: tasksToPull[0]?.description || "Multiple Tasks",
+        assignee: tasksToPull[0]?.ownerName || "Multiple Owners"
       }
     });
 
-    addNotification(`Successfully pulled and loaded ${tasksToPull.length} tasks into the active shift tracker!`, "success");
-    
-    setSelectedHistoryIdForPull("");
-    setSelectedPulledTaskIds({});
-    setShowPullTasksPanel(false);
-  };
-
-  const handleToggleTask = (taskId: string) => {
-    updateWorkspaceState((prev) => ({
-      ...prev,
-      tasks: prev.tasks.map((t) => t.id === taskId ? { ...t, completed: !t.completed } : t)
-    }));
+    addNotification(`Successfully pulled ${tasksToPull.length} tasks into active shift!`, "success");
   };
 
   const handleDeleteTask = (taskId: string) => {
@@ -3535,188 +3592,7 @@ service cloud.firestore {
                     <Plus className="w-3.5 h-3.5" />
                     Add Shift Task to Current Cycle
                   </h4>
-                  <button
-                    type="button"
-                    onClick={() => setShowPullTasksPanel(!showPullTasksPanel)}
-                    className="px-2.5 py-1 text-[10px] font-bold rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-indigo-400 font-mono inline-flex items-center gap-1.5 border border-indigo-200/50 cursor-pointer shadow-3xs transition-all"
-                  >
-                    <History className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                    {showPullTasksPanel ? "Close Carry-over Panel" : "🔌 Carry-over Past Shift Tasks"}
-                  </button>
                 </div>
-
-                {showPullTasksPanel && (
-                  <div className={`p-4 border ${activeTheme.cardBorder} rounded-lg bg-slate-50/50 dark:bg-slate-900/40 space-y-4`}>
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b pb-3">
-                      <div>
-                        <h5 className={`text-xs font-bold ${activeTheme.cardTitleText} flex items-center gap-1.5`}>
-                          🔄 Select Previous Shift Handover
-                        </h5>
-                        <p className={`text-[10.5px] ${activeTheme.cardSubText}`}>
-                          Carry over uncompleted or critical tasks from a past operational cycle.
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={selectedHistoryIdForPull}
-                          onChange={(e) => {
-                            const newId = e.target.value;
-                            setSelectedHistoryIdForPull(newId);
-                            const selectedHandover = dbState.history.find(h => h.id === newId) || PRESET_MOCK_HANDOVERS.find(h => h.id === newId);
-                            const tList = selectedHandover?.tasks || [];
-                            const initialSelection: Record<string, boolean> = {};
-                            tList.forEach(t => {
-                              initialSelection[t.id] = true;
-                            });
-                            setSelectedPulledTaskIds(initialSelection);
-                          }}
-                          className={`${activeTheme.inputBg} border rounded px-3 py-1.5 text-xs outline-none w-64 shadow-2xs font-sans cursor-pointer`}
-                        >
-                          <option value="">-- Choose past handover shift --</option>
-                          
-                          {dbState.history.length > 0 && (
-                            <optgroup label="Workspace Saved Handovers">
-                              {dbState.history.map(item => {
-                                const localDate = new Date(item.date).toLocaleDateString([], {
-                                  month: "short",
-                                  day: "numeric"
-                                });
-                                return (
-                                  <option key={item.id} value={item.id}>
-                                    Shift (Signed off by {item.outgoingLead}) - {localDate} ({item.tasksCount || item.tasks?.length || 0} tasks)
-                                  </option>
-                                );
-                              })}
-                            </optgroup>
-                          )}
-
-                          <optgroup label="Pre-loaded Operational Shift Templates">
-                            {PRESET_MOCK_HANDOVERS.map(preset => (
-                              <option key={preset.id} value={preset.id}>
-                                {preset.title} ({preset.tasks.length} tasks)
-                              </option>
-                            ))}
-                          </optgroup>
-                        </select>
-                      </div>
-                    </div>
-
-                    {selectedHistoryIdForPull ? (() => {
-                      const selectedHandover = dbState.history.find(h => h.id === selectedHistoryIdForPull) || PRESET_MOCK_HANDOVERS.find(h => h.id === selectedHistoryIdForPull);
-                      const tasksInHandover = selectedHandover?.tasks || [];
-                      const isPreset = PRESET_MOCK_HANDOVERS.some(h => h.id === selectedHistoryIdForPull);
-
-                      if (tasksInHandover.length === 0) {
-                        return (
-                          <div className={`p-6 text-center ${activeTheme.cardSubText} border ${activeTheme.cardBorder} rounded-lg bg-orange-50/10`}>
-                            <AlertTriangle className="w-5 h-5 mx-auto text-amber-500 mb-1" />
-                            <p className="text-xs font-semibold text-amber-500">No raw tasks found inside this historical trace.</p>
-                            <p className="text-[10px] opacity-80 mt-1">This shift log was recorded prior to the database persistence upgrades. Please try one of our pre-loaded template shifts in the dropdown to test!</p>
-                          </div>
-                        );
-                      }
-
-                      const selectedCount = Object.values(selectedPulledTaskIds).filter(Boolean).length;
-
-                      return (
-                        <div className="space-y-3.5">
-                          <div className="flex items-center justify-between text-[11px] font-semibold">
-                            <span className={activeTheme.cardSubText}>
-                              Showing {tasksInHandover.length} tasks recorded on {isPreset ? 'preset archive' : 'live logs'}.
-                            </span>
-                            
-                            <div className="flex items-center gap-4">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const allSelected = Object.keys(selectedPulledTaskIds).length === tasksInHandover.length && Object.values(selectedPulledTaskIds).every(Boolean);
-                                  const nextSelection: Record<string, boolean> = {};
-                                  if (!allSelected) {
-                                    tasksInHandover.forEach(t => { nextSelection[t.id] = true; });
-                                  }
-                                  setSelectedPulledTaskIds(nextSelection);
-                                }}
-                                className="text-indigo-600 hover:text-indigo-850 dark:text-indigo-400 dark:hover:text-indigo-300 font-mono text-[10px] cursor-pointer"
-                              >
-                                {Object.values(selectedPulledTaskIds).filter(Boolean).length === tasksInHandover.length ? "Deselect All" : "Select All"}
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className={`border ${activeTheme.cardBorder} rounded-lg bg-white dark:bg-slate-900 overflow-hidden divide-y ${activeTheme.cardBorder} shadow-3xs`}>
-                            {tasksInHandover.map(task => {
-                              const isChecked = !!selectedPulledTaskIds[task.id];
-                              return (
-                                <div
-                                  key={task.id}
-                                  onClick={() => setSelectedPulledTaskIds(prev => ({ ...prev, [task.id]: !prev[task.id] }))}
-                                  className={`flex items-start gap-3 p-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer text-left text-xs ${isChecked ? 'bg-indigo-50/20 dark:bg-indigo-950/20' : ''}`}
-                                >
-                                  <div className="mt-0.5 shrink-0">
-                                    {isChecked ? (
-                                      <CheckSquare className="w-4 h-4 text-indigo-650 text-indigo-600" />
-                                    ) : (
-                                      <Square className={`w-4 h-4 ${activeTheme.cardSubText}`} />
-                                    )}
-                                  </div>
-                                  <div className="flex-1 space-y-0.5">
-                                    <p className={`font-medium ${isChecked ? 'text-indigo-950 dark:text-indigo-250 font-semibold' : activeTheme.cardTitleText}`}>
-                                      {task.description}
-                                    </p>
-                                    <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
-                                      <span className="px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-850 font-sans font-semibold text-slate-650 dark:text-slate-350">{task.ownerName}</span>
-                                      <span>•</span>
-                                      <span className={`font-bold ${
-                                        task.priority === "High" ? "text-rose-500" :
-                                        task.priority === "Medium" ? "text-amber-500" : "text-indigo-500"
-                                      }`}>{task.priority} Priority</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-
-                          <div className="flex justify-end gap-2.5 pt-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedHistoryIdForPull("");
-                                setSelectedPulledTaskIds({});
-                              }}
-                              className={`px-3 py-1.5 border border-slate-300 rounded text-xs text-slate-605 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer`}
-                            >
-                              Reset
-                            </button>
-                            <button
-                              type="button"
-                              disabled={selectedCount === 0}
-                              onClick={() => {
-                                const selectedTasks = tasksInHandover.filter(t => selectedPulledTaskIds[t.id]);
-                                handlePullPreviousTasks(selectedTasks);
-                              }}
-                              className={`px-4 py-1.5 font-bold rounded text-xs select-none transition-all flex items-center gap-1.5 cursor-pointer ${
-                                selectedCount === 0
-                                  ? "bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed opacity-50"
-                                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs"
-                              }`}
-                            >
-                              <FileCheck className="w-3.5 h-3.5" />
-                              Pull {selectedCount} Selected Tasks into Active Cycle
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })() : (
-                      <div className={`p-6 text-center border ${activeTheme.cardBorder} rounded-lg bg-indigo-50/5`}>
-                        <History className={`w-8 h-8 mx-auto ${activeTheme.cardSubText} mb-2 opacity-50`} />
-                        <p className={`text-xs font-semibold ${activeTheme.cardSubText}`}>Select a previous handover or preloaded template above to begin.</p>
-                        <p className="text-[10px] text-slate-400 mt-1">Carried-over tasks are added directly to the active shift register with pending status.</p>
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 <form onSubmit={handleAddTask} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                   <div className="md:col-span-5 space-y-1">
@@ -4477,10 +4353,86 @@ service cloud.firestore {
                           &quot;{record.logText}&quot;
                         </div>
 
-                        <div className={`flex items-center justify-between text-[9px] ${activeTheme.cardSubText} font-mono leading-none`}>
-                          <span>Verified: {record.tasksCount} Active • {record.backlogCount} Backlog</span>
-                          <span className={`${activeTheme.cardSubText} font-sans`}>By User: <strong>{record.signedOffBy}</strong></span>
+                        <div className="flex items-center justify-between border-t dark:border-slate-800 pt-2 pb-0.5">
+                          <span className={`text-[9px] ${activeTheme.cardSubText} font-mono leading-none`}>
+                            Verified: {record.tasksCount} Active • {record.backlogCount} Backlog
+                          </span>
+                          <span className={`text-[9px] ${activeTheme.cardSubText} font-sans leading-none`}>
+                            By User: <strong>{record.signedOffBy}</strong>
+                          </span>
                         </div>
+
+                        <div className="flex items-center justify-between pt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const isExpanded = !!expandedHistoryIds[record.id];
+                              setExpandedHistoryIds(prev => ({ ...prev, [record.id]: !isExpanded }));
+                            }}
+                            className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                          >
+                            {expandedHistoryIds[record.id] ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            {expandedHistoryIds[record.id] ? "Hide Tasks" : `View Tasks (${record.tasks?.length || 0}) / Carry Over`}
+                          </button>
+                        </div>
+
+                        {/* Expandable Task List for Pulling / Carrying Over */}
+                        {expandedHistoryIds[record.id] && record.tasks && record.tasks.length > 0 && (
+                          <div className={`mt-2.5 p-2 bg-slate-50 dark:bg-slate-900/60 border ${activeTheme.cardBorder} rounded-md space-y-2 text-left`}>
+                            <div className="flex items-center justify-between border-b pb-1 dark:border-slate-800">
+                              <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-500 font-mono">
+                                Past Tasks ({record.tasks.length})
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handlePullAllTasks(record.tasks || [])}
+                                className="px-1.5 py-0.5 text-[8.5px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 rounded border border-indigo-200/50 cursor-pointer shadow-3xs transition-all flex items-center gap-1"
+                              >
+                                🔌 Carry over all
+                              </button>
+                            </div>
+                            <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                              {record.tasks.map((task) => (
+                                <div 
+                                  key={task.id} 
+                                  className={`flex items-start justify-between p-1.5 bg-white dark:bg-slate-800/80 border ${activeTheme.cardBorder} rounded text-xs hover:border-indigo-200 dark:hover:border-indigo-900 transition-all`}
+                                >
+                                  <div className="space-y-0.5 text-left flex-1 pr-2">
+                                    <p className={`font-medium ${activeTheme.cardTitleText} text-[11px] leading-tight`}>
+                                      {task.description}
+                                    </p>
+                                    <div className="flex items-center gap-1.5 text-[9px] text-slate-400 font-mono">
+                                      <span className="px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400">
+                                        {task.ownerName}
+                                      </span>
+                                      <span>•</span>
+                                      <span className={
+                                        task.priority === "High" ? "text-rose-500 font-bold" :
+                                        task.priority === "Medium" ? "text-amber-500 font-bold" : "text-indigo-500 font-bold"
+                                      }>
+                                        {task.priority}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePullSingleTask(task)}
+                                    title="Carry over this task to the current shift cycle"
+                                    className="p-1 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-900 dark:hover:text-indigo-400 text-slate-400 rounded cursor-pointer transition-colors"
+                                  >
+                                    <Plus className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {expandedHistoryIds[record.id] && (!record.tasks || record.tasks.length === 0) && (
+                          <div className="mt-2.5 p-3 text-center bg-slate-50 dark:bg-slate-900/60 border border-dashed rounded text-[10px] text-slate-400">
+                            No detailed tasks are saved inside this historical signature.
+                          </div>
+                        )}
                       </div>
                     );
                   })
