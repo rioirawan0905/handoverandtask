@@ -10,75 +10,21 @@ async function startServer() {
 
   app.use(express.json());
 
-  // API to securely dispatch actual operational notification emails
+  // API to securely dispatch actual operational notification emails via standard SMTP parameters
   app.post("/api/send-email", async (req, res) => {
     const { to, subject, html, text } = req.body;
 
-    const resendApiKey = process.env.RESEND_API_KEY;
     const host = process.env.SMTP_HOST;
     const portStr = process.env.SMTP_PORT;
     const user = process.env.SMTP_USER;
     const pass = process.env.SMTP_PASS;
-
-    const isResendSmtp = (host && host.includes("resend")) || (user && user.toLowerCase() === "resend");
-    const isResendActive = !!(resendApiKey || isResendSmtp);
-
-    // Default sender is configured to send from onboarding@resend.dev when using Resend, or fallback to the general portal sender.
-    const from = process.env.SMTP_FROM || 
-                 (isResendActive 
-                   ? `"Drilling Phase 5 Handover Portal" <onboarding@resend.dev>` 
-                   : `"Drilling Phase 5 Handover Portal" <onboarding@resend.dev>`); // Default to onboarding@resend.dev for this prompt
-
-    // Prioritize direct Resend REST API if RESEND_API_KEY is present
-    if (resendApiKey) {
-      try {
-        console.log("Attempting direct email dispatch via Resend REST API...");
-        const response = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${resendApiKey}`
-          },
-          body: JSON.stringify({
-            from,
-            to: [to],
-            subject,
-            html: html || text,
-            text: text
-          })
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log("Resend API dispatch successful:", data.id);
-          return res.json({
-            success: true,
-            messageId: data.id
-          });
-        } else {
-          const errText = await response.text();
-          console.error("Resend API rejected dispatch:", errText);
-          return res.status(200).json({
-            success: false,
-            reason: "RESEND_API_ERROR",
-            message: `Resend API returned status ${response.status}: ${errText}`
-          });
-        }
-      } catch (err: any) {
-        console.error("Resend API direct fetch error:", err);
-        return res.status(500).json({
-          success: false,
-          reason: "RESEND_FETCH_FAILURE",
-          message: err.message || "Failed to make HTTP post request to Resend service."
-        });
-      }
-    }
+    const from = process.env.SMTP_FROM || `"Drilling Operations Portal" <portal@drill-handover-portal.org>`;
 
     if (!host || !user || !pass) {
       return res.status(200).json({
         success: false,
         reason: "SMTP_NOT_CONFIGURED",
-        message: "Neither RESEND_API_KEY nor SMTP Host (SMTP_HOST, SMTP_USER, SMTP_PASS) are active in your environment configuration. Outbox was saved strictly into Simulation sandbox."
+        message: "SMTP Host, Username, or Password credentials are missing in your environment configuration. Outbox was saved strictly into Simulation sandbox."
       });
     }
 

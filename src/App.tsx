@@ -26,7 +26,8 @@ import {
   Info,
   Bell,
   BellRing,
-  Settings
+  Settings,
+  Download
 } from "lucide-react";
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
@@ -89,6 +90,8 @@ interface HandoverTask {
   priority: "High" | "Medium" | "Low";
   dueDate: string;
   completed: boolean;
+  isCarriedOver?: boolean;
+  carryOverCount?: number;
 }
 
 interface BacklogTask {
@@ -179,6 +182,47 @@ interface HandoverState {
 const CURRENT_DATE_STR = "2026-05-20";
 const CURRENT_DATE_VAL = new Date(CURRENT_DATE_STR);
 
+export const PRESET_MOCK_HANDOVERS: { id: string; title: string; outgoingLead: string; incomingLead: string; date: string; logText: string; tasks: HandoverTask[] }[] = [
+  {
+    id: "preset-1",
+    title: "A-Shift Handover (BOP Stack Pressure Safety Testing)",
+    outgoingLead: "George Vance (Senior Operator)",
+    incomingLead: "Sarah Connor (Rig Manager)",
+    date: "2026-05-19T06:00:00Z",
+    logText: "Completed choke manifold lining, bleed valves balanced. Monitored mud line return viscosity.",
+    tasks: [
+      { id: "p1-t1", description: "Calibrate high-pressure transducer on Mud Pump 2 on Rig Floor", ownerName: "George Vance (Senior Operator)", priority: "High", dueDate: "2026-05-22", completed: false },
+      { id: "p1-t2", description: "Inspect accumulator backup nitrogen charge on BOP stack", ownerName: "Markus Webb (Lead Engineer)", priority: "High", dueDate: "2026-05-23", completed: false },
+      { id: "p1-t3", description: "Run shear rams functional stroke test telemetry diagnostics", ownerName: "Sarah Connor (Rig Manager)", priority: "Medium", dueDate: "2026-05-24", completed: false },
+      { id: "p1-t4", description: "Update main mud logger telemetry feed log files", ownerName: "George Vance (Senior Operator)", priority: "Low", dueDate: "2026-05-25", completed: false }
+    ]
+  },
+  {
+    id: "preset-2",
+    title: "B-Shift Handover (Stage 2 Sidetrack Drill-string Prep)",
+    outgoingLead: "Sarah Connor (Rig Manager)",
+    incomingLead: "Marcus Crane (Drill Superintendent)",
+    date: "2026-05-19T18:00:00Z",
+    logText: "Re-reamed sidetrack section down to 8,400 ft. Standby pressure normal. Driller key files updated.",
+    tasks: [
+      { id: "p2-t1", description: "Verify casing mud weights and fluid viscosity density calculations", ownerName: "Sarah Connor (Rig Manager)", priority: "High", dueDate: "2026-05-21", completed: false },
+      { id: "p2-t2", description: "Test emergency main kill switch safety valves on Powerhouse 4", ownerName: "Markus Webb (Lead Engineer)", priority: "High", dueDate: "2026-05-22", completed: false },
+      { id: "p2-t3", description: "Scribe drilling jar stroke indicators and torque values", ownerName: "George Vance (Senior Operator)", priority: "Medium", dueDate: "2026-05-23", completed: false }
+    ]
+  },
+  {
+    id: "preset-3",
+    title: "C-Shift Handover (Logistics & Wellhead Completion Prep)",
+    outgoingLead: "Marcus Crane (Drill Superintendent)",
+    incomingLead: "George Vance (Senior Operator)",
+    date: "2026-05-20T06:00:00Z",
+    logText: "Casing delivery verified. Supervised rig floor crew safety induction. Heavy lift plans cleared.",
+    tasks: [
+      { id: "p3-t1", description: "Supervise heavy casing string pick-up assembly and slip test", ownerName: "Marcus Crane (Drill Superintendent)", priority: "High", dueDate: "2026-05-22", completed: false },
+      { id: "p3-t2", description: "Check gas chromatograph calibration bottles and line filters", ownerName: "George Vance (Senior Operator)", priority: "Medium", dueDate: "2026-05-23", completed: false }
+    ]
+  }
+];
 
 export const DEFAULT_PERSONNEL: PersonnelItem[] = [
   { id: "p-1", name: "George Vance", title: "Senior Operator" },
@@ -414,9 +458,6 @@ export default function App() {
     name: string;
   } | null>(null);
 
-  // Expanded status for past handovers to view/carry over tasks
-  const [expandedHistoryIds, setExpandedHistoryIds] = useState<Record<string, boolean>>({});
-
   // Multi-workspace management state
   const [currentSelectedWorkspaceId, setCurrentSelectedWorkspaceId] = useState<string>(() => {
     const saved = localStorage.getItem("handover_active_workspace_id");
@@ -492,6 +533,16 @@ export default function App() {
 
   const [backlogSortField, setBacklogSortField] = useState<"completed" | "description" | "ownerName" | "priority" | "backlogDate" | null>(null);
   const [backlogSortDirection, setBacklogSortDirection] = useState<"asc" | "desc">("asc");
+
+  // Expanded state for history entries
+  const [expandedHistoryIds, setExpandedHistoryIds] = useState<Record<string, boolean>>({});
+
+  const handleToggleHistoryExpand = (id: string) => {
+    setExpandedHistoryIds((prev) => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
   
   // Global Personnel references
   const [globalPersonnel, setGlobalPersonnel] = useState<PersonnelItem[]>(() => {
@@ -612,6 +663,59 @@ export default function App() {
     priority: "Medium" as "High" | "Medium" | "Low",
     backlogDate: "2026-05-15"
   });
+
+  const [selectedHistoryCarryOverId, setSelectedHistoryCarryOverId] = useState<string>("");
+  const [selectedHistoryTaskIds, setSelectedHistoryTaskIds] = useState<string[]>([]);
+
+  const handleSelectHistoryRecord = (id: string) => {
+    setSelectedHistoryCarryOverId(id);
+    if (!id) {
+      setSelectedHistoryTaskIds([]);
+      return;
+    }
+    const record = dbState?.history?.find((h) => h.id === id);
+    if (record) {
+      const defaultTaskIds = (record.tasks || [])
+        .filter((t) => !t.completed)
+        .map((t) => t.id);
+      if (defaultTaskIds.length === 0 && record.tasks) {
+        setSelectedHistoryTaskIds(record.tasks.map((t) => t.id));
+      } else {
+        setSelectedHistoryTaskIds(defaultTaskIds);
+      }
+    } else {
+      setSelectedHistoryTaskIds([]);
+    }
+  };
+
+  const handleCarryOverFromHistory = (historyId: string, taskIdsToCarryOver: string[]) => {
+    const historicalHandover = dbState?.history.find((h) => h.id === historyId);
+    if (!historicalHandover) return;
+
+    const tasksToImport = (historicalHandover.tasks || [])
+      .filter((t) => taskIdsToCarryOver.includes(t.id))
+      .map((t) => ({
+        ...t,
+        id: `task-carried-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        isCarriedOver: true,
+        carryOverCount: (t.carryOverCount || 0) + 1,
+        completed: false
+      }));
+
+    if (tasksToImport.length === 0) {
+      addNotification("No tasks selected to carry over.", "warning");
+      return;
+    }
+
+    updateWorkspaceState((prev) => ({
+      ...prev,
+      tasks: [...tasksToImport, ...prev.tasks]
+    }));
+
+    addNotification(`Successfully carried over ${tasksToImport.length} task(s) from historical handover of ${new Date(historicalHandover.date).toLocaleDateString()}.`, "success");
+    setSelectedHistoryCarryOverId("");
+    setSelectedHistoryTaskIds([]);
+  };
 
   // State log edit
   const [logText, setLogText] = useState("");
@@ -909,7 +1013,7 @@ export default function App() {
           </div>
         `;
       } else {
-        emailSubject = `[Drilling Phase 5 Handover Portal] ${
+        emailSubject = `[Drilling Operations Portal] ${
           event === "taskAssignment" ? "Task Assignment Event Alert" :
           event === "overdueAlert" ? "URGENT OVERDUE ACTION REQUIRED" :
           "Global Roster System Event"
@@ -920,7 +1024,7 @@ export default function App() {
             <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
               <!-- Subject/Title Header -->
               <div style="background-color: #0f172a; padding: 24px; color: #ffffff; text-align: left;">
-                <h1 style="margin: 0; font-size: 18px; font-weight: 800; text-transform: uppercase;">Drilling Phase 5 Handover Portal</h1>
+                <h1 style="margin: 0; font-size: 18px; font-weight: 800; text-transform: uppercase;">Drilling Operations Portal</h1>
                 <p style="margin: 4px 0 0 0; font-size: 10px; color: #94a3b8; font-family: monospace;">REAL-TIME SYSTEM RELAY</p>
               </div>
 
@@ -1843,63 +1947,50 @@ export default function App() {
     }));
   };
 
-  const handlePullSingleTask = (task: HandoverTask) => {
-    const clonedTask: HandoverTask = {
-      ...task,
-      id: `task-pulled-${Date.now()}-${Math.random()}`,
-      completed: false
-    };
-
-    updateWorkspaceState((prev) => ({
-      ...prev,
-      tasks: [clonedTask, ...prev.tasks]
-    }));
-
-    dispatchNotification({
-      event: "taskAssignment",
-      message: `Carried over task "${task.description}" from a past shift to active cycle.`,
-      type: "info",
-      details: {
-        taskName: task.description,
-        assignee: task.ownerName
-      }
-    });
-
-    addNotification(`Task carried over successfully: "${task.description}"`, "success");
-  };
-
-  const handlePullAllTasks = (tasksToPull: HandoverTask[]) => {
-    if (!tasksToPull || tasksToPull.length === 0) return;
-
-    const cloned: HandoverTask[] = tasksToPull.map((t) => ({
-      ...t,
-      id: `task-pulled-${Date.now()}-${Math.random()}`,
-      completed: false
-    }));
-
-    updateWorkspaceState((prev) => ({
-      ...prev,
-      tasks: [...cloned, ...prev.tasks]
-    }));
-
-    dispatchNotification({
-      event: "taskAssignment",
-      message: `Successfully carried over ${tasksToPull.length} tasks from a past operational shift.`,
-      type: "info",
-      details: {
-        taskName: tasksToPull[0]?.description || "Multiple Tasks",
-        assignee: tasksToPull[0]?.ownerName || "Multiple Owners"
-      }
-    });
-
-    addNotification(`Successfully pulled ${tasksToPull.length} tasks into active shift!`, "success");
-  };
-
   const handleDeleteTask = (taskId: string) => {
     updateWorkspaceState((prev) => ({
       ...prev,
       tasks: prev.tasks.filter((t) => t.id !== taskId)
     }));
+  };
+
+  const handleCarryOverActiveTask = (taskId: string) => {
+    updateWorkspaceState((prev) => ({
+      ...prev,
+      tasks: prev.tasks.map((t) => 
+        t.id === taskId 
+          ? { 
+              ...t, 
+              isCarriedOver: true, 
+              carryOverCount: (t.carryOverCount || 0) + 1 
+            } 
+          : t
+      )
+    }));
+    addNotification("Task marked as Carried Over for the next rotation.", "success");
+  };
+
+  const handleMoveTaskToBacklog = (taskId: string) => {
+    const task = dbState?.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    updateWorkspaceState((prev) => {
+      const backlogItem: BacklogTask = {
+        id: `backlog-carried-${Date.now()}`,
+        description: task.description,
+        ownerName: task.ownerName,
+        priority: task.priority,
+        backlogDate: new Date().toISOString().split("T")[0],
+        completed: false
+      };
+
+      return {
+        ...prev,
+        tasks: prev.tasks.filter(t => t.id !== taskId),
+        backlog: [backlogItem, ...prev.backlog]
+      };
+    });
+    addNotification("Task successfully carried over and moved to persistent backlog.", "success");
   };
 
   const handleAddBacklog = (e: React.FormEvent) => {
@@ -2028,7 +2119,13 @@ export default function App() {
     // Outgoing Lead becomes the previous incoming, 
     // Completed tasks are archived, unresolved active tasks are retained
     updateWorkspaceState((prev) => {
-      const uncompletedTasks = prev.tasks.filter(t => !t.completed);
+      const uncompletedTasks = prev.tasks
+        .filter(t => !t.completed)
+        .map(t => ({
+          ...t,
+          isCarriedOver: true,
+          carryOverCount: (t.carryOverCount || 0) + 1
+        }));
       
       return {
         ...prev,
@@ -3001,6 +3098,33 @@ service cloud.firestore {
                     </table>
                   </div>
 
+                  {/* Concise explanation of In-App, Email, and Push notifications */}
+                  <div className={`p-4 border border-dashed ${activeTheme.cardBorder} rounded-xl bg-slate-500/5 space-y-3 text-xs text-left`}>
+                    <h5 className={`font-bold font-mono text-[10px] uppercase tracking-wider ${activeTheme.accentText} text-left`}>
+                      📣 Understanding Dispatch Channels
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-left">
+                      <div className="space-y-1">
+                        <span className="font-bold text-slate-800 dark:text-slate-200 block">📱 In-App Alerts</span>
+                        <span className={`text-[10px] ${activeTheme.cardSubText} leading-relaxed block`}>
+                          Instant logs added directly to the active workspace to Toast notifications, perfect for live console monitoring.
+                        </span>
+                      </div>
+                      <div className="space-y-1 border-t md:border-t-0 md:border-l border-slate-500/10 pt-2 md:pt-0 md:pl-3 text-left">
+                        <span className="font-bold text-slate-800 dark:text-slate-200 block">✉️ Email Reports</span>
+                        <span className={`text-[10px] ${activeTheme.cardSubText} leading-relaxed block`}>
+                          Sends structured transactional HTML emails to your endpoint below, serving as certified shift transition archives.
+                        </span>
+                      </div>
+                      <div className="space-y-1 border-t md:border-t-0 md:border-l border-slate-500/10 pt-2 md:pt-0 md:pl-3 text-left">
+                        <span className="font-bold text-slate-800 dark:text-slate-200 block">🔔 Desktop Push</span>
+                        <span className={`text-[10px] ${activeTheme.cardSubText} leading-relaxed block`}>
+                          Triggers floating slide-in desktop banner alerts in your browser, keeping you notified when working on other tabs or sections.
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className={`p-4 border ${activeTheme.cardBorder} rounded-xl ${activeTheme.mutedBg} space-y-3 text-xs text-left`}>
                     <label className={`text-[10px] uppercase font-bold tracking-wider ${activeTheme.cardSubText} font-mono block text-left`}>
                       Alert Destination Email Endpoint
@@ -3469,12 +3593,12 @@ service cloud.firestore {
                             Priority {renderSortIcon("priority", tasksSortField, tasksSortDirection)}
                           </div>
                         </th>
-                        <th className="p-3 w-32 text-center cursor-pointer hover:opacity-85 transition-opacity" onClick={() => handleTasksSort("dueDate")}>
+                        <th className="p-3 w-36 text-center cursor-pointer hover:opacity-85 transition-opacity" onClick={() => handleTasksSort("dueDate")}>
                           <div className="flex items-center justify-center gap-0.5">
                             Countdown {renderSortIcon("dueDate", tasksSortField, tasksSortDirection)}
                           </div>
                         </th>
-                        <th className="p-3 w-12 text-center text-slate-400">Trash</th>
+                        <th className="p-3 w-48 text-center text-slate-400 font-bold">Actions</th>
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${activeTheme.cardBorder}`}>
@@ -3520,9 +3644,16 @@ service cloud.firestore {
                               </td>
 
                               <td className="p-3 font-medium leading-relaxed">
-                                <span className={task.completed ? "line-through text-slate-400" : activeTheme.cardTitleText}>
-                                  {task.description}
-                                </span>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className={task.completed ? "line-through text-slate-400" : activeTheme.cardTitleText}>
+                                    {task.description}
+                                  </span>
+                                  {task.isCarriedOver && (
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] font-mono font-semibold bg-amber-50 text-amber-850 border border-amber-200 rounded shrink-0 select-none">
+                                      ↩ Carried Over ({task.carryOverCount || 1}x)
+                                    </span>
+                                  )}
+                                </div>
                               </td>
 
                               <td className="p-3 text-center">
@@ -3563,18 +3694,43 @@ service cloud.firestore {
                               </td>
 
                               <td className="p-3 text-center">
-                                <button
-                                  onClick={() => setDeleteConfirmation({
-                                    isOpen: true,
-                                    type: "task",
-                                    id: task.id,
-                                    name: task.description
-                                  })}
-                                  className="text-slate-350 hover:text-rose-550 rounded transition-colors"
-                                  title="Remove Task"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 hover:text-rose-500" />
-                                </button>
+                                <div className="flex items-center justify-center gap-1">
+                                  {!task.completed && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCarryOverActiveTask(task.id)}
+                                        className="px-2 py-1 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/20 text-[10px] rounded font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                                        title="Manually carry over this task to the next shift cycle"
+                                      >
+                                        <RefreshCw className="w-2.5 h-2.5" />
+                                        <span>Carry Over</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleMoveTaskToBacklog(task.id)}
+                                        className="px-2 py-1 bg-violet-500/10 text-violet-600 hover:bg-violet-500/20 border border-violet-500/20 text-[10px] rounded font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                                        title="Move this task to the persistent backlog block"
+                                      >
+                                        <Archive className="w-2.5 h-2.5" />
+                                        <span>To Backlog</span>
+                                      </button>
+                                    </>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeleteConfirmation({
+                                      isOpen: true,
+                                      type: "task",
+                                      id: task.id,
+                                      name: task.description
+                                    })}
+                                    className="p-1 px-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded transition-colors cursor-pointer"
+                                    title="Remove Task"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -3656,6 +3812,155 @@ service cloud.firestore {
                     </button>
                   </div>
                 </form>
+              </div>
+
+              {/* Carry Over Tasks from Registered Handovers */}
+              <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl p-4 m-4 space-y-3 bg-indigo-500/5 dark:bg-indigo-950/20`}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-dashed pb-2">
+                  <h4 className={`text-xs font-bold uppercase tracking-wider ${activeTheme.accentText} font-mono flex items-center gap-1.5`}>
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Carry Over Tasks from Registered Handovers
+                  </h4>
+                  <span className={`text-[10px] px-2 py-0.5 bg-indigo-500/10 ${activeTheme.accentText} font-mono font-bold rounded border border-indigo-500/15`}>
+                     INDEPENDENT CARRYOVER ENGINE
+                  </span>
+                </div>
+
+                {dbState?.history && dbState.history.length === 0 ? (
+                  <div className={`p-3 rounded border border-dashed ${activeTheme.cardBorder} ${activeTheme.mutedBg} text-center`}>
+                    <p className={`text-[10.5px] ${activeTheme.cardSubText} italic`}>
+                      No registered handovers available under this workspace yet. Complete a digital sign-off to register your first record.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3.5 text-left">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                      <div className="md:col-span-8 space-y-1">
+                        <label className={`text-[10px] font-bold ${activeTheme.cardSubText} uppercase tracking-wide block text-left`}>
+                          Select Registered Handover Record
+                        </label>
+                        <select
+                          value={selectedHistoryCarryOverId}
+                          onChange={(e) => handleSelectHistoryRecord(e.target.value)}
+                          className={`${activeTheme.inputBg} border rounded px-3 py-1.5 text-xs outline-none w-full shadow-xs cursor-pointer ${activeTheme.isDark ? 'text-slate-200' : 'text-slate-800'}`}
+                        >
+                          <option value="">-- Choose Registered Handover to Import Tasks --</option>
+                          {dbState?.history?.map((record) => {
+                            const dateStr = new Date(record.date).toLocaleDateString([], {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            });
+                            return (
+                              <option key={record.id} value={record.id} className="text-slate-900 bg-white">
+                                {dateStr} | {record.outgoingLead} ➔ {record.incomingLead} ({record.tasksCount} tasks)
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+
+                      <div className="md:col-span-4">
+                        <button
+                          type="button"
+                          onClick={() => handleCarryOverFromHistory(selectedHistoryCarryOverId, selectedHistoryTaskIds)}
+                          disabled={!selectedHistoryCarryOverId || selectedHistoryTaskIds.length === 0}
+                          className={`w-full h-[32px] px-3 font-bold rounded text-xs inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                            selectedHistoryCarryOverId && selectedHistoryTaskIds.length > 0
+                              ? "bg-indigo-600 hover:bg-indigo-750 hover:bg-indigo-700 text-white shadow-xs"
+                              : "bg-slate-300 text-slate-500 dark:bg-slate-800 dark:text-slate-550 cursor-not-allowed border-dashed border"
+                          }`}
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Carry Over Selected ({selectedHistoryTaskIds.length})</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* If a history is selected, show its task checklist details for granular selection */}
+                    {selectedHistoryCarryOverId && (() => {
+                      const selectedRecord = dbState?.history?.find(h => h.id === selectedHistoryCarryOverId);
+                      if (!selectedRecord || !selectedRecord.tasks || selectedRecord.tasks.length === 0) {
+                        return (
+                          <p className="text-[10.5px] italic text-slate-400 p-2 text-center rounded border border-dashed">
+                            No tasks recorded inside this handover snapshot.
+                          </p>
+                        );
+                      }
+
+                      return (
+                        <div className={`p-3 rounded border ${activeTheme.cardBorder} ${activeTheme.mutedBg} space-y-2`}>
+                          <div className={`flex items-center justify-between text-[10px] font-bold ${activeTheme.cardTitleText} border-b pb-1 dark:border-slate-800`}>
+                            <span>Select tasks to restore & carry over into active shift:</span>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                className="text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer font-bold"
+                                onClick={() => setSelectedHistoryTaskIds((selectedRecord.tasks || []).map(t => t.id))}
+                              >
+                                Select All
+                              </button>
+                              <span className="text-slate-300">|</span>
+                              <button
+                                type="button"
+                                className="text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer font-bold"
+                                onClick={() => setSelectedHistoryTaskIds([])}
+                              >
+                                Deselect All
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="max-h-[160px] overflow-y-auto space-y-1.5 pr-1 text-left">
+                            {selectedRecord.tasks.map((task) => {
+                              const isChecked = selectedHistoryTaskIds.includes(task.id);
+                              return (
+                                <div 
+                                  key={task.id} 
+                                  onClick={() => {
+                                    if (isChecked) {
+                                      setSelectedHistoryTaskIds(prev => prev.filter(id => id !== task.id));
+                                    } else {
+                                      setSelectedHistoryTaskIds(prev => [...prev, task.id]);
+                                    }
+                                  }}
+                                  className={`flex items-start gap-2.5 p-2 rounded border cursor-pointer select-none transition-all ${
+                                    isChecked 
+                                      ? "bg-indigo-500/10 border-indigo-500/25" 
+                                      : "bg-slate-500/5 hover:bg-slate-500/10 border-transparent hover:border-slate-500/10 border"
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => {}} // handled by click on container
+                                    className="rounded border-slate-350 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-3.5 h-3.5 mt-0.5 shrink-0"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <p className={`text-[11px] font-medium leading-tight truncate ${task.completed ? "line-through text-slate-400" : activeTheme.cardTitleText}`}>
+                                        {task.description}
+                                      </p>
+                                      {task.isCarriedOver && (
+                                        <span className="inline-flex px-1 text-[8px] font-mono leading-none bg-amber-500/10 text-amber-600 rounded">
+                                          ↩ Carried Over ({task.carryOverCount || 1}x)
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className={`text-[9.5px] ${activeTheme.cardSubText} font-mono mt-0.5`}>
+                                      Owner: {task.ownerName} • Priority: {task.priority} • Due: {task.dueDate}
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
 
             </section>
@@ -4314,7 +4619,7 @@ service cloud.firestore {
                             {localDate} @ {localTime}
                           </span>
                           <div className="flex items-center gap-1.5">
-                            <span className="px-1.5 py-0.5 rounded text-[8px] bg-emerald-50/10 text-emerald-550 text-emerald-550 text-emerald-500 font-bold border border-emerald-500/20 uppercase font-mono leading-none">
+                            <span className="px-1.5 py-0.5 rounded text-[8px] bg-emerald-50/10 text-emerald-555 text-emerald-550 text-emerald-500 font-bold border border-emerald-500/20 uppercase font-mono leading-none">
                               Signed Off
                             </span>
                             <button
@@ -4331,6 +4636,18 @@ service cloud.firestore {
                               title="Delete shift record"
                             >
                               <Trash2 className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleHistoryExpand(record.id)}
+                              className={`p-1 rounded cursor-pointer transition-colors flex items-center justify-center ${
+                                expandedHistoryIds[record.id]
+                                  ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                                  : "hover:bg-slate-100/50 text-slate-400 hover:text-slate-600"
+                              }`}
+                              title={expandedHistoryIds[record.id] ? "Collapse details" : "Expand details"}
+                            >
+                              {expandedHistoryIds[record.id] ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                             </button>
                           </div>
                         </div>
@@ -4353,86 +4670,76 @@ service cloud.firestore {
                           &quot;{record.logText}&quot;
                         </div>
 
-                        <div className="flex items-center justify-between border-t dark:border-slate-800 pt-2 pb-0.5">
-                          <span className={`text-[9px] ${activeTheme.cardSubText} font-mono leading-none`}>
-                            Verified: {record.tasksCount} Active • {record.backlogCount} Backlog
-                          </span>
-                          <span className={`text-[9px] ${activeTheme.cardSubText} font-sans leading-none`}>
-                            By User: <strong>{record.signedOffBy}</strong>
-                          </span>
+                        <div className={`flex items-center justify-between text-[9px] ${activeTheme.cardSubText} font-mono leading-none`}>
+                          <span>Verified: {record.tasksCount} Active • {record.backlogCount} Backlog</span>
+                          <span className={`${activeTheme.cardSubText} font-sans`}>By User: <strong>{record.signedOffBy}</strong></span>
                         </div>
 
-                        <div className="flex items-center justify-between pt-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const isExpanded = !!expandedHistoryIds[record.id];
-                              setExpandedHistoryIds(prev => ({ ...prev, [record.id]: !isExpanded }));
-                            }}
-                            className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-                          >
-                            {expandedHistoryIds[record.id] ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                            {expandedHistoryIds[record.id] ? "Hide Tasks" : `View Tasks (${record.tasks?.length || 0}) / Carry Over`}
-                          </button>
-                        </div>
-
-                        {/* Expandable Task List for Pulling / Carrying Over */}
-                        {expandedHistoryIds[record.id] && record.tasks && record.tasks.length > 0 && (
-                          <div className={`mt-2.5 p-2 bg-slate-50 dark:bg-slate-900/60 border ${activeTheme.cardBorder} rounded-md space-y-2 text-left`}>
-                            <div className="flex items-center justify-between border-b pb-1 dark:border-slate-800">
-                              <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-500 font-mono">
-                                Past Tasks ({record.tasks.length})
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handlePullAllTasks(record.tasks || [])}
-                                className="px-1.5 py-0.5 text-[8.5px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 rounded border border-indigo-200/50 cursor-pointer shadow-3xs transition-all flex items-center gap-1"
-                              >
-                                🔌 Carry over all
-                              </button>
-                            </div>
-                            <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-                              {record.tasks.map((task) => (
-                                <div 
-                                  key={task.id} 
-                                  className={`flex items-start justify-between p-1.5 bg-white dark:bg-slate-800/80 border ${activeTheme.cardBorder} rounded text-xs hover:border-indigo-200 dark:hover:border-indigo-900 transition-all`}
-                                >
-                                  <div className="space-y-0.5 text-left flex-1 pr-2">
-                                    <p className={`font-medium ${activeTheme.cardTitleText} text-[11px] leading-tight`}>
-                                      {task.description}
-                                    </p>
-                                    <div className="flex items-center gap-1.5 text-[9px] text-slate-400 font-mono">
-                                      <span className="px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400">
-                                        {task.ownerName}
+                        {expandedHistoryIds[record.id] && (
+                          <div className={`mt-2 p-2 rounded border ${activeTheme.cardBorder} ${activeTheme.cardBg} space-y-2.5 text-[10px]`}>
+                            <div>
+                              <div className="font-bold uppercase tracking-wider text-[8px] text-slate-400 mb-1 flex items-center gap-1">
+                                <span>📋</span> Active Handover Tasks ({record.tasksCount})
+                              </div>
+                              {!record.tasks || record.tasks.length === 0 ? (
+                                <p className="text-[10px] text-slate-400 italic">No tasks recorded in this shift cycle.</p>
+                              ) : (
+                                <div className="space-y-1">
+                                  {record.tasks.map((t) => (
+                                    <div key={t.id} className="flex items-center justify-between p-1 rounded bg-slate-500/5 hover:bg-slate-500/10">
+                                      <span className={`leading-relaxed text-[10.5px] ${t.completed ? "line-through text-slate-400" : "font-medium"}`}>
+                                        {t.description}
                                       </span>
-                                      <span>•</span>
-                                      <span className={
-                                        task.priority === "High" ? "text-rose-500 font-bold" :
-                                        task.priority === "Medium" ? "text-amber-500 font-bold" : "text-indigo-500 font-bold"
-                                      }>
-                                        {task.priority}
+                                      <div className="flex items-center gap-1 shrink-0 ml-2">
+                                        <span className={`px-1 rounded text-[8px] font-bold ${
+                                          t.priority === "High" 
+                                            ? "bg-rose-500/10 text-rose-500 border border-rose-500/20" 
+                                            : t.priority === "Medium"
+                                            ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                                            : "bg-teal-500/10 text-teal-600 border border-teal-500/20"
+                                        }`}>
+                                          {t.priority}
+                                        </span>
+                                        {t.completed ? (
+                                          <span className="text-[8px] text-emerald-600 font-bold bg-emerald-500/5 px-1 py-0.5 rounded border border-emerald-500/10 uppercase font-mono">
+                                            Completed
+                                          </span>
+                                        ) : (
+                                          <span className="text-[8px] text-amber-600 font-bold bg-amber-500/5 px-1 py-0.5 rounded border border-amber-500/10 uppercase font-mono">
+                                            Carried Over {t.carryOverCount && t.carryOverCount > 1 ? `(${t.carryOverCount}x)` : ""}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {record.backlog && record.backlog.length > 0 && (
+                              <div className="border-t border-slate-500/10 pt-2 border-dashed">
+                                <div className="font-bold uppercase tracking-wider text-[8px] text-slate-400 mb-1">
+                                  🗄️ Long-Term Backlog ({record.backlogCount})
+                                </div>
+                                <div className="space-y-1">
+                                  {record.backlog.map((b) => (
+                                    <div key={b.id} className="flex items-center justify-between p-1 rounded bg-slate-500/5">
+                                      <span className="leading-relaxed text-slate-400">{b.description}</span>
+                                      <span className="px-1 rounded text-[8px] font-bold bg-slate-500/10 text-slate-400 ml-2 shrink-0 border border-slate-500/20">
+                                        {b.priority}
                                       </span>
                                     </div>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => handlePullSingleTask(task)}
-                                    title="Carry over this task to the current shift cycle"
-                                    className="p-1 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-900 dark:hover:text-indigo-400 text-slate-400 rounded cursor-pointer transition-colors"
-                                  >
-                                    <Plus className="w-3.5 h-3.5" />
-                                  </button>
+                                  ))}
                                 </div>
-                              ))}
-                            </div>
+                              </div>
+                            )}
                           </div>
                         )}
 
-                        {expandedHistoryIds[record.id] && (!record.tasks || record.tasks.length === 0) && (
-                          <div className="mt-2.5 p-3 text-center bg-slate-50 dark:bg-slate-900/60 border border-dashed rounded text-[10px] text-slate-400">
-                            No detailed tasks are saved inside this historical signature.
-                          </div>
-                        )}
+                        <div className={`flex items-center justify-between text-[9px] ${activeTheme.cardSubText} font-mono leading-none`}>
+                          <span>Verified: {record.tasksCount} Active • {record.backlogCount} Backlog</span>
+                          <span className={`${activeTheme.cardSubText} font-sans`}>By User: <strong>{record.signedOffBy}</strong></span>
+                        </div>
                       </div>
                     );
                   })
