@@ -10,5 +10,10 @@ service cloud.firestore {
     match /handoverSystem/{workspaceId} {
       allow read, write: if true;
     }
+
+    // Allow read/write for global handover settings (e.g. roster)
+    match /handoverSettings/{settingsId} {
+      allow read, write: if true;
+    }
   }
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { motion } from "motion/react";
 import { 
   Database, 
   User, 
@@ -70,6 +71,44 @@ interface NotificationItem {
   id: string;
   type: "info" | "success" | "warning";
   message: string;
+  timestamp: string;
+}
+
+interface NotificationPreference {
+  inApp: boolean;
+  email: boolean;
+  push: boolean;
+}
+
+interface NotificationSettings {
+  taskAssignment: NotificationPreference;
+  overdueAlert: NotificationPreference;
+  handoverSignoff: NotificationPreference;
+  rosterUpdate: NotificationPreference;
+  userEmail: string;
+}
+
+interface SimulatedEmail {
+  id: string;
+  to: string;
+  subject: string;
+  body: string;
+  type: string;
+  timestamp: string;
+  details?: {
+    taskName?: string;
+    assignee?: string;
+    dueDate?: string;
+    spaceName?: string;
+    operatorName?: string;
+    signeeName?: string;
+  };
+}
+
+interface SimulatedPush {
+  id: string;
+  title: string;
+  body: string;
   timestamp: string;
 }
 
@@ -269,7 +308,11 @@ export default function App() {
 
   // Multi-workspace management state
   const [currentSelectedWorkspaceId, setCurrentSelectedWorkspaceId] = useState<string>(() => {
-    return localStorage.getItem("handover_active_workspace_id") || "currentWorkspace";
+    const saved = localStorage.getItem("handover_active_workspace_id");
+    if (saved && saved !== "currentWorkspace") {
+      return saved;
+    }
+    return "ws-primary-shift-space";
   });
   const [workspaces, setWorkspaces] = useState<{ id: string, name: string }[]>(() => {
     const saved = localStorage.getItem("handover_workspace_list");
@@ -277,20 +320,24 @@ export default function App() {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          // Filter out user's auto-created or testing workspaces with naming 'Handover Testing'
+          // Filter out user's auto-created or testing workspaces and legacy default space
           const filtered = parsed.filter(w => 
             w.name !== "Handover Testing" && 
             w.id !== "handover-testing" && 
-            w.id !== "ws-handover-testing"
+            w.id !== "ws-handover-testing" &&
+            w.id !== "currentWorkspace"
           );
-          return filtered.length > 0 ? filtered : [{ id: "currentWorkspace", name: "Default Handover Space" }];
+          return filtered.length > 0 ? filtered : [{ id: "ws-primary-shift-space", name: "Primary Shift Space" }];
         }
       } catch (e) {
         // ignore and fallback
       }
     }
-    return [{ id: "currentWorkspace", name: "Default Handover Space" }];
+    return [{ id: "ws-primary-shift-space", name: "Primary Shift Space" }];
   });
+
+  // Standalone Dashboard State
+  const [allWorkspacesData, setAllWorkspacesData] = useState<Record<string, HandoverState>>({});
   
   // Database configuration
   const [firebaseConfigMode, setFirebaseConfigMode] = useState<"demo" | "cloud">("cloud");
@@ -391,7 +438,14 @@ export default function App() {
       });
     }
 
-    addNotification(`Added personnel globally: ${name.trim()} (${title.trim()})`, "success");
+    dispatchNotification({
+      event: "rosterUpdate",
+      message: `Added personnel globally: ${name.trim()} (${title.trim()})`,
+      type: "success",
+      details: {
+        operatorName: name.trim()
+      }
+    });
   };
 
   const handleRemovePersonnel = (id: string, name: string) => {
@@ -404,7 +458,14 @@ export default function App() {
       });
     }
 
-    addNotification(`Removed personnel globally: ${name}`, "warning");
+    dispatchNotification({
+      event: "rosterUpdate",
+      message: `Removed personnel globally: ${name}`,
+      type: "warning",
+      details: {
+        operatorName: name
+      }
+    });
   };
 
   const [connectionStatusMsg, setConnectionStatusMsg] = useState<{
@@ -442,6 +503,69 @@ export default function App() {
   const [isNewNotification, setIsNewNotification] = useState(false);
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
 
+  // Granular notification settings state
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(() => {
+    const saved = localStorage.getItem("handover_notification_rules");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // use default
+      }
+    }
+    return {
+      taskAssignment: { inApp: true, email: true, push: true },
+      overdueAlert: { inApp: true, email: true, push: true },
+      handoverSignoff: { inApp: true, email: false, push: true },
+      rosterUpdate: { inApp: true, email: true, push: false },
+      userEmail: "yesaya.rio@gmail.com"
+    };
+  });
+
+  // Save rules to localStorage
+  useEffect(() => {
+    localStorage.setItem("handover_notification_rules", JSON.stringify(notificationSettings));
+  }, [notificationSettings]);
+
+  // Outbox & Notification channels simulation state
+  const [simulatedEmails, setSimulatedEmails] = useState<SimulatedEmail[]>(() => {
+    const saved = localStorage.getItem("handover_simulated_emails");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // ignore
+      }
+    }
+    return [];
+  });
+
+  const [simulatedPushes, setSimulatedPushes] = useState<SimulatedPush[]>(() => {
+    const saved = localStorage.getItem("handover_simulated_pushes");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // ignore
+      }
+    }
+    return [];
+  });
+
+  // Floating transient desktop-style push banners
+  const [activePushAlerts, setActivePushAlerts] = useState<SimulatedPush[]>([]);
+  const [activeSimulationTab, setActiveSimulationTab] = useState<"emails" | "pushes">("emails");
+  const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem("handover_simulated_emails", JSON.stringify(simulatedEmails));
+  }, [simulatedEmails]);
+
+  useEffect(() => {
+    localStorage.setItem("handover_simulated_pushes", JSON.stringify(simulatedPushes));
+  }, [simulatedPushes]);
+
+  // Quick system warning or internal inApp log toast helper
   const addNotification = (message: string, type: "info" | "success" | "warning" = "info") => {
     const newNotif: NotificationItem = {
       id: `notif-${Date.now()}-${Math.random()}`,
@@ -453,31 +577,228 @@ export default function App() {
     setIsNewNotification(true);
   };
 
+  // Modern Multi-Channel Notification Dispatcher with routing filters
+  const dispatchNotification = (args: {
+    event: "taskAssignment" | "overdueAlert" | "handoverSignoff" | "rosterUpdate";
+    message: string;
+    type: "info" | "success" | "warning";
+    details?: {
+      taskName?: string;
+      assignee?: string;
+      dueDate?: string;
+      spaceName?: string;
+      operatorName?: string;
+      signeeName?: string;
+    };
+  }) => {
+    const { event, message, type, details } = args;
+    const pref = notificationSettings[event];
+    if (!pref) return;
+
+    const timestampStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // 1. In-App delivery
+    if (pref.inApp) {
+      const newNotif: NotificationItem = {
+        id: `notif-${Date.now()}-${Math.random()}`,
+        type,
+        message,
+        timestamp: timestampStr
+      };
+      setNotifications(prev => [newNotif, ...prev.slice(0, 19)]);
+      setIsNewNotification(true);
+    }
+
+    // 2. Real & Simulated Transactional Email dispatch
+    if (pref.email) {
+      const emailSubject = `[Drilling Operations Portal] ${
+        event === "taskAssignment" ? "Task Assignment Event Alert" :
+        event === "overdueAlert" ? "URGENT OVERDUE ACTION REQUIRED" :
+        event === "handoverSignoff" ? "Shift Handover Approved & Signed" :
+        "Global Roster System Event"
+      }`;
+
+      // Build beautiful responsive HTML layout
+      const emailHtml = `
+        <div style="font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f8fafc; padding: 24px 16px; color: #1e293b; direction: ltr; text-align: left;">
+          <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+            <!-- Subject/Title Header -->
+            <div style="background-color: #0f172a; padding: 24px; color: #ffffff; text-align: left;">
+              <h1 style="margin: 0; font-size: 18px; font-weight: 800; text-transform: uppercase;">Drilling Operations Portal</h1>
+              <p style="margin: 4px 0 0 0; font-size: 10px; color: #94a3b8; font-family: monospace;">REAL-TIME SYSTEM RELAY</p>
+            </div>
+
+            <!-- Content Area -->
+            <div style="padding: 24px;">
+              <h2 style="margin: 0 0 16px 0; font-size: 14px; font-weight: 700; color: #0f172a;">${emailSubject}</h2>
+              
+              <div style="background-color: #f8fafc; border-left: 4px solid #4f46e5; border-radius: 4px; padding: 16px; margin-bottom: 24px; text-align: left; line-height: 1.6; font-size: 13px; color: #334155; border-top: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9;">
+                <strong>Event Message:</strong><br/>
+                ${message}
+              </div>
+
+              ${details && Object.keys(details).length > 0 ? `
+                <div style="margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+                  <span style="display: block; font-size: 10px; font-weight: 800; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.05em; margin-bottom: 8px;">Structured Payload Details</span>
+                  <table style="width: 100%; border-collapse: collapse; font-size: 12px; font-family: monospace;">
+                    <tbody>
+                      ${details.taskName ? `
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                          <td style="padding: 8px 0; color: #64748b; font-weight: 600;">TASK SPEC:</td>
+                          <td style="padding: 8px 0; color: #0f172a; font-weight: 700; text-align: right;">${details.taskName}</td>
+                        </tr>
+                      ` : ''}
+                      ${details.assignee ? `
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                          <td style="padding: 8px 0; color: #64748b; font-weight: 600;">ASSIGNEE:</td>
+                          <td style="padding: 8px 0; color: #0f172a; font-weight: 700; text-align: right;">${details.assignee}</td>
+                        </tr>
+                      ` : ''}
+                      ${details.dueDate ? `
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                          <td style="padding: 8px 0; color: #64748b; font-weight: 600;">DEADLINE:</td>
+                          <td style="padding: 8px 0; color: #0f172a; font-weight: 700; text-align: right;">${details.dueDate}</td>
+                        </tr>
+                      ` : ''}
+                      ${details.spaceName ? `
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                          <td style="padding: 8px 0; color: #64748b; font-weight: 600;">SPACE ID:</td>
+                          <td style="padding: 8px 0; color: #0f172a; font-weight: 700; text-align: right;">${details.spaceName}</td>
+                        </tr>
+                      ` : ''}
+                      ${details.signeeName ? `
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                          <td style="padding: 8px 0; color: #64748b; font-weight: 600;">AUTHORIZER:</td>
+                          <td style="padding: 8px 0; color: #0f172a; font-weight: 700; text-align: right;">${details.signeeName}</td>
+                        </tr>
+                      ` : ''}
+                    </tbody>
+                  </table>
+                </div>
+              ` : ''}
+
+              <!-- Action button link -->
+              <div style="margin-top: 24px; text-align: center;">
+                <a href="${window.location.origin}" style="display: inline-block; background-color: #4f46e5; color: #ffffff; padding: 12px 24px; font-weight: 700; font-size: 13px; text-decoration: none; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);">Open Portal Dashboard</a>
+              </div>
+
+              <!-- Footer disclaimer -->
+              <p style="margin: 24px 0 0 0; font-size: 10px; color: #94a3b8; text-align: center; line-height: 1.5; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+                You received this transmission because notification rules are configured on your account settings. This is an automated real-world transactional email sent using nodemailer.
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const newEmail: SimulatedEmail = {
+        id: `email-${Date.now()}-${Math.random()}`,
+        to: notificationSettings.userEmail || "yesaya.rio@gmail.com",
+        subject: emailSubject,
+        body: message,
+        type: event,
+        timestamp: new Date().toLocaleString(),
+        details: details || {}
+      };
+      setSimulatedEmails(prev => [newEmail, ...prev]);
+
+      // Secure physical dispatch request via full-stack /api/send-email
+      fetch("/api/send-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          to: newEmail.to,
+          subject: newEmail.subject,
+          text: newEmail.body,
+          html: emailHtml
+        })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          addNotification(`📧 Real Email Relay: Dispatched successfully! Message ID: ${data.messageId}`, "success");
+        } else if (data.reason === "SMTP_NOT_CONFIGURED") {
+          console.log("Real SMTP variables not configured. Preserved strictly inside Simulator panel.");
+        } else {
+          addNotification(`⚠️ SMTP delivery problem: ${data.message}`, "warning");
+        }
+      })
+      .catch(e => {
+        console.warn("Could not dispatch actual email to backend server:", e);
+      });
+    }
+
+    // 3. Simulated Mobile/Desktop Push Alert
+    if (pref.push) {
+      const newPush: SimulatedPush = {
+        id: `push-${Date.now()}-${Math.random()}`,
+        title: event === "taskAssignment" ? "⚙️ Operational Assignment" :
+               event === "overdueAlert" ? "🚨 Escalation: Deadline Overdue" :
+               event === "handoverSignoff" ? "📝 Handover Certified" :
+               "👥 Roster Registry Synced",
+        body: message,
+        timestamp: timestampStr
+      };
+      setSimulatedPushes(prev => [newPush, ...prev]);
+      setActivePushAlerts(prev => [...prev, newPush]);
+
+      // Dismiss floating alert toast after 4s
+      setTimeout(() => {
+        setActivePushAlerts(prev => prev.filter(p => p.id !== newPush.id));
+      }, 4000);
+    }
+  };
+
   const prevDbStateRef = useRef<HandoverState | null>(null);
 
+  // Monitor database changes and dispatch according to custom preferences
   useEffect(() => {
     if (!dbState) return;
     
     if (prevDbStateRef.current) {
       const prev = prevDbStateRef.current;
+      const workspaceName = workspaces.find(w => w.id === currentSelectedWorkspaceId)?.name || "Primary Shift Space";
       
       // Check if tasks count changed
       if (dbState.tasks.length > prev.tasks.length) {
         const addedTask = dbState.tasks[0];
         if (addedTask) {
-          addNotification(`New drilling task added: "${addedTask.description}" by ${addedTask.ownerName}`, "success");
+          dispatchNotification({
+            event: "taskAssignment",
+            message: `New drilling task assigned: "${addedTask.description}" given to ${addedTask.ownerName} in "${workspaceName}".`,
+            type: "success",
+            details: {
+              taskName: addedTask.description,
+              assignee: addedTask.ownerName,
+              dueDate: addedTask.dueDate,
+              spaceName: workspaceName
+            }
+          });
         }
       } else if (dbState.tasks.length < prev.tasks.length) {
-        addNotification("A drilling task was deleted from active track.", "warning");
+        dispatchNotification({
+          event: "taskAssignment",
+          message: `A task was deleted from active track under "${workspaceName}".`,
+          type: "warning"
+        });
       } else {
         // Check if tasks completed status changed
         dbState.tasks.forEach((task) => {
           const prevTask = prev.tasks.find(t => t.id === task.id);
           if (prevTask && prevTask.completed !== task.completed) {
-            addNotification(
-              `Task status updated: "${task.description}" is now ${task.completed ? "COMPLETED" : "OPEN"}`,
-              task.completed ? "success" : "info"
-            );
+            dispatchNotification({
+              event: "taskAssignment",
+              message: `Task status updated: "${task.description}" (assigned to ${task.ownerName}) is now ${task.completed ? "COMPLETED" : "OPEN"}.`,
+              type: task.completed ? "success" : "info",
+              details: {
+                taskName: task.description,
+                assignee: task.ownerName,
+                dueDate: task.dueDate,
+                spaceName: workspaceName
+              }
+            });
           }
         });
       }
@@ -486,40 +807,77 @@ export default function App() {
       if (dbState.backlog.length > prev.backlog.length) {
         const addedBacklog = dbState.backlog[0];
         if (addedBacklog) {
-          addNotification(`New backlog filed: "${addedBacklog.description}" owned by ${addedBacklog.ownerName}`, "success");
+          dispatchNotification({
+            event: "taskAssignment",
+            message: `New backlog item filed: "${addedBacklog.description}" owned by ${addedBacklog.ownerName} in "${workspaceName}".`,
+            type: "success",
+            details: {
+              taskName: addedBacklog.description,
+              assignee: addedBacklog.ownerName,
+              dueDate: addedBacklog.backlogDate,
+              spaceName: workspaceName
+            }
+          });
         }
       } else if (dbState.backlog.length < prev.backlog.length) {
-        addNotification("A backlog item was removed or archived.", "warning");
+        dispatchNotification({
+          event: "taskAssignment",
+          message: `A backlog item was removed/archived from track in "${workspaceName}".`,
+          type: "warning"
+        });
       } else {
         // Check if backlog completed status changed
         dbState.backlog.forEach((item) => {
           const prevItem = prev.backlog.find(b => b.id === item.id);
           if (prevItem && prevItem.completed !== item.completed) {
-            addNotification(
-              `Backlog progress changed: "${item.description}"`,
-              "info"
-            );
+            dispatchNotification({
+              event: "taskAssignment",
+              message: `Backlog progress updated: "${item.description}" owned by ${item.ownerName} set to ${item.completed ? 'COMPLETED' : 'OPEN'}.`,
+              type: "info",
+              details: {
+                taskName: item.description,
+                assignee: item.ownerName,
+                dueDate: item.backlogDate,
+                spaceName: workspaceName
+              }
+            });
           }
         });
       }
 
       // Check if leads updated
       if (dbState.outgoingLead !== prev.outgoingLead && prev.outgoingLead) {
-        addNotification(`Outgoing lead updated to: "${dbState.outgoingLead}"`, "info");
+        dispatchNotification({
+          event: "handoverSignoff",
+          message: `Outgoing Shift Lead is now updated to: "${dbState.outgoingLead}" in "${workspaceName}".`,
+          type: "info"
+        });
       }
       if (dbState.incomingLead !== prev.incomingLead && prev.incomingLead) {
-        addNotification(`Incoming lead counterpart aligned to: "${dbState.incomingLead}"`, "info");
+        dispatchNotification({
+          event: "handoverSignoff",
+          message: `Incoming Lead Counterpart aligned to: "${dbState.incomingLead}" in "${workspaceName}".`,
+          type: "info"
+        });
       }
 
-      // Check if history log changed
+      // Check if history collection received a new sign-off record
       if (dbState.history.length > prev.history.length) {
         const record = dbState.history[0];
-        addNotification(`Handover signed off by ${record.signedOffBy}. Shift rota updated!`, "success");
+        dispatchNotification({
+          event: "handoverSignoff",
+          message: `Handover signed off by ${record.signedOffBy}. Shift rota successfully archived for space "${workspaceName}".`,
+          type: "success",
+          details: {
+            signeeName: record.signedOffBy,
+            spaceName: workspaceName
+          }
+        });
       }
     }
     
     prevDbStateRef.current = dbState;
-  }, [dbState, currentSelectedWorkspaceId]);
+  }, [dbState, currentSelectedWorkspaceId, workspaces]);
 
   // Firestore object references
   // (Moved up to prevent hoisting/block-scoping errors)
@@ -649,21 +1007,26 @@ export default function App() {
         text: `Connected to Cloud Sync. Querying workspace listing for repository: "${config.projectId}".`
       });
 
+      // Purge currentWorkspace if it exists
+      deleteDoc(doc(db, "handoverSystem", "currentWorkspace")).catch(err => {
+        console.log("Cleanup of legacy default workspace:", err);
+      });
+
       // Query database for all existing workspaces to populate the dropdown list
       getDocs(collection(db, "handoverSystem")).then((snapshot) => {
         const loadedWorkspaces: { id: string; name: string }[] = [];
         if (!snapshot.empty) {
           snapshot.docs.forEach((docSnapshot) => {
-            const data = docSnapshot.data();
-            const displayName = data.workspaceName || (docSnapshot.id === "currentWorkspace" 
-              ? "Default Handover Space" 
-              : docSnapshot.id.replace(/^ws-/, "").replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()));
+            const displayName = docSnapshot.id === "ws-primary-shift-space" 
+              ? "Primary Shift Space" 
+              : docSnapshot.id.replace(/^ws-/, "").replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
             
-            // Filter out "Handover Testing" or similar
+            // Filter out "Handover Testing" or similar and legacy default
             if (
               displayName !== "Handover Testing" &&
               docSnapshot.id !== "handover-testing" &&
-              docSnapshot.id !== "ws-handover-testing"
+              docSnapshot.id !== "ws-handover-testing" &&
+              docSnapshot.id !== "currentWorkspace"
             ) {
               loadedWorkspaces.push({
                 id: docSnapshot.id,
@@ -673,9 +1036,9 @@ export default function App() {
           });
         }
         
-        // Ensure "currentWorkspace" exists in list
-        if (!loadedWorkspaces.some(w => w.id === "currentWorkspace")) {
-          loadedWorkspaces.unshift({ id: "currentWorkspace", name: "Default Handover Space" });
+        // Ensure "ws-primary-shift-space" exists in list
+        if (!loadedWorkspaces.some(w => w.id === "ws-primary-shift-space")) {
+          loadedWorkspaces.unshift({ id: "ws-primary-shift-space", name: "Primary Shift Space" });
         }
         
         setWorkspaces(loadedWorkspaces);
@@ -691,6 +1054,50 @@ export default function App() {
       });
     }
   };
+
+  // Standalone Dashboard Syncing
+  useEffect(() => {
+    if (firebaseConfigMode !== "cloud" || !firestoreInstance) return;
+
+    const colRef = collection(firestoreInstance, "handoverSystem");
+    const unsubscribe = onSnapshot(colRef, (snapshot) => {
+      const data: Record<string, HandoverState> = {};
+      snapshot.docs.forEach((docSnapshot) => {
+        if (
+          docSnapshot.id !== "currentWorkspace" &&
+          docSnapshot.id !== "handover-testing" &&
+          docSnapshot.id !== "ws-handover-testing"
+        ) {
+          data[docSnapshot.id] = docSnapshot.data() as HandoverState;
+        }
+      });
+      setAllWorkspacesData(data);
+    }, (err) => {
+      console.warn("Failed to listen to all workspaces collection snapshot:", err);
+    });
+
+    return () => unsubscribe();
+  }, [firebaseConfigMode, firestoreInstance]);
+
+  useEffect(() => {
+    if (firebaseConfigMode !== "demo") return;
+
+    const data: Record<string, HandoverState> = {};
+    workspaces.forEach((w) => {
+      if (w.id === "currentWorkspace") return;
+      const saved = localStorage.getItem(`handover_local_demo_db_${w.id}`);
+      if (saved) {
+        try {
+          data[w.id] = JSON.parse(saved);
+        } catch (e) {
+          data[w.id] = DEFAULT_WORKSPACE_STATE;
+        }
+      } else {
+        data[w.id] = DEFAULT_WORKSPACE_STATE;
+      }
+    });
+    setAllWorkspacesData(data);
+  }, [firebaseConfigMode, workspaces, dbState]);
 
   // Real-time snapshot subscription state effect triggered by active workspace or firestore updates
   useEffect(() => {
@@ -869,8 +1276,8 @@ export default function App() {
   };
 
   const handleDeleteWorkspace = (id: string) => {
-    if (id === "currentWorkspace") {
-      addNotification("The Default Handover Space cannot be deleted.", "warning");
+    if (workspaces.length <= 1) {
+      addNotification("At least one active handover space must exist.", "warning");
       return;
     }
 
@@ -896,7 +1303,7 @@ export default function App() {
 
     // Switch selection if current was deleted
     if (currentSelectedWorkspaceId === id) {
-      const fallbackId = updatedWorkspaces[0]?.id || "currentWorkspace";
+      const fallbackId = updatedWorkspaces[0]?.id || "ws-primary-shift-space";
       handleWorkspaceChange(fallbackId);
     }
 
@@ -1461,7 +1868,7 @@ export default function App() {
                   <option key={w.id} value={w.id}>{w.name}</option>
                 ))}
               </select>
-              {currentSelectedWorkspaceId !== "currentWorkspace" && (
+              {workspaces.length > 1 && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1908,100 +2315,620 @@ export default function App() {
                 )}
               </div>
             </div>
+
+            {/* Divider line separating main roster/themes and granular notifications prefs */}
+            <div className={`border-t my-6 ${activeTheme.cardBorder}`} />
+
+            <div className="pl-2 space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b pb-3 border-slate-200/65">
+                <div>
+                  <h3 className={`text-sm uppercase tracking-wider font-extrabold ${activeTheme.cardTitleText} flex items-center gap-2 font-display`}>
+                    <span>🔔</span> Operational Notification Dispatch Controls
+                  </h3>
+                  <p className={`text-[11px] ${activeTheme.cardSubText} leading-relaxed mt-0.5 max-w-2xl text-left`}>
+                    Configure rules to selectively relay drilling events over multiple communication protocols. Test custom setups by triggering live overdue evaluations below.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Manual Scan for overdue alerts
+                      const overdueTasks = dbState.tasks.filter(t => !t.completed && calculateDaysRemaining(t.dueDate).isOverdue);
+                      if (overdueTasks.length === 0) {
+                        addNotification("Scan complete: No overdue tasks currently found in active space.", "success");
+                        return;
+                      }
+                      overdueTasks.forEach(task => {
+                        dispatchNotification({
+                          event: "overdueAlert",
+                          message: `ALERT ESC-11: Checklist item "${task.description}" assigned to operator ${task.ownerName} is past due date (${task.dueDate})!`,
+                          type: "warning",
+                          details: {
+                            taskName: task.description,
+                            assignee: task.ownerName,
+                            dueDate: task.dueDate,
+                            spaceName: workspaces.find(w => w.id === currentSelectedWorkspaceId)?.name || "Primary Shift Space"
+                          }
+                        });
+                      });
+                      addNotification(`Live scanning compiled! Triggered ${overdueTasks.length} overdue alerts across active channels. Check outbox logs below!`, "success");
+                    }}
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-bold transition-colors shadow-2xs cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    🚨 Scan & Dispatch Overdue Alerts
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSimulatedEmails([]);
+                      setSimulatedPushes([]);
+                      addNotification("Simulation trail logs and outbox records cleared.", "info");
+                    }}
+                    className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 border border-slate-350 hover:bg-slate-50/10 rounded cursor-pointer transition-colors"
+                  >
+                    ♻️ Reset Sim Outboxes
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                {/* Rule Matrix & Toggles */}
+                <div className="lg:col-span-6 space-y-4">
+                  <div className={`overflow-hidden border ${activeTheme.cardBorder} rounded-xl shadow-3xs`}>
+                    <table className="w-full text-left font-sans text-xs border-collapse">
+                      <thead>
+                        <tr className={`${activeTheme.mutedBg} ${activeTheme.cardSubText} font-mono border-b ${activeTheme.cardBorder} uppercase font-bold text-[10px]`}>
+                          <th className="p-3">Event Type Trigger</th>
+                          <th className="p-3 text-center">In-App</th>
+                          <th className="p-3 text-center">Email</th>
+                          <th className="p-3 text-center">Push</th>
+                        </tr>
+                      </thead>
+                      <tbody className={`divide-y ${activeTheme.cardBorder} ${activeTheme.isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                        {/* Row 1: Task Assignment */}
+                        <tr className="hover:opacity-90 transition-opacity">
+                          <td className="p-3">
+                            <span className="font-semibold block text-slate-900 dark:text-white text-left">⚙️ Task Assignments</span>
+                            <span className={`text-[10px] ${activeTheme.cardSubText} block text-left`}>Assigning/updating actions & sub-checklists</span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={notificationSettings.taskAssignment.inApp}
+                              onChange={(e) => setNotificationSettings({
+                                ...notificationSettings,
+                                taskAssignment: { ...notificationSettings.taskAssignment, inApp: e.target.checked }
+                              })}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
+                            />
+                          </td>
+                          <td className="p-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={notificationSettings.taskAssignment.email}
+                              onChange={(e) => setNotificationSettings({
+                                ...notificationSettings,
+                                taskAssignment: { ...notificationSettings.taskAssignment, email: e.target.checked }
+                              })}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
+                            />
+                          </td>
+                          <td className="p-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={notificationSettings.taskAssignment.push}
+                              onChange={(e) => setNotificationSettings({
+                                ...notificationSettings,
+                                taskAssignment: { ...notificationSettings.taskAssignment, push: e.target.checked }
+                              })}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
+                            />
+                          </td>
+                        </tr>
+
+                        {/* Row 2: Overdue Alert */}
+                        <tr className="hover:opacity-90 transition-opacity">
+                          <td className="p-3">
+                            <span className="font-semibold block text-slate-900 dark:text-white text-left">🚨 Overdue Deadlines</span>
+                            <span className={`text-[10px] ${activeTheme.cardSubText} block text-left`}>Warnings for tasks running past due limits</span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={notificationSettings.overdueAlert.inApp}
+                              onChange={(e) => setNotificationSettings({
+                                ...notificationSettings,
+                                overdueAlert: { ...notificationSettings.overdueAlert, inApp: e.target.checked }
+                              })}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
+                            />
+                          </td>
+                          <td className="p-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={notificationSettings.overdueAlert.email}
+                              onChange={(e) => setNotificationSettings({
+                                ...notificationSettings,
+                                overdueAlert: { ...notificationSettings.overdueAlert, email: e.target.checked }
+                              })}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
+                            />
+                          </td>
+                          <td className="p-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={notificationSettings.overdueAlert.push}
+                              onChange={(e) => setNotificationSettings({
+                                ...notificationSettings,
+                                overdueAlert: { ...notificationSettings.overdueAlert, push: e.target.checked }
+                              })}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
+                            />
+                          </td>
+                        </tr>
+
+                        {/* Row 3: Handover Signoff */}
+                        <tr className="hover:opacity-90 transition-opacity">
+                          <td className="p-3">
+                            <span className="font-semibold block text-slate-900 dark:text-white text-left">📝 Handover Sign-Offs</span>
+                            <span className={`text-[10px] ${activeTheme.cardSubText} block text-left`}>Official shift transitions & lead certifications</span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={notificationSettings.handoverSignoff.inApp}
+                              onChange={(e) => setNotificationSettings({
+                                ...notificationSettings,
+                                handoverSignoff: { ...notificationSettings.handoverSignoff, inApp: e.target.checked }
+                              })}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
+                            />
+                          </td>
+                          <td className="p-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={notificationSettings.handoverSignoff.email}
+                              onChange={(e) => setNotificationSettings({
+                                ...notificationSettings,
+                                handoverSignoff: { ...notificationSettings.handoverSignoff, email: e.target.checked }
+                              })}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
+                            />
+                          </td>
+                          <td className="p-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={notificationSettings.handoverSignoff.push}
+                              onChange={(e) => setNotificationSettings({
+                                ...notificationSettings,
+                                handoverSignoff: { ...notificationSettings.handoverSignoff, push: e.target.checked }
+                              })}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
+                            />
+                          </td>
+                        </tr>
+
+                        {/* Row 4: Roster Update */}
+                        <tr className="hover:opacity-90 transition-opacity">
+                          <td className="p-3">
+                            <span className="font-semibold block text-slate-900 dark:text-white text-left">👥 Personnel Roster Updates</span>
+                            <span className={`text-[10px] ${activeTheme.cardSubText} block text-left`}>Registry changes in core workspace operators</span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={notificationSettings.rosterUpdate.inApp}
+                              onChange={(e) => setNotificationSettings({
+                                ...notificationSettings,
+                                rosterUpdate: { ...notificationSettings.rosterUpdate, inApp: e.target.checked }
+                              })}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
+                            />
+                          </td>
+                          <td className="p-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={notificationSettings.rosterUpdate.email}
+                              onChange={(e) => setNotificationSettings({
+                                ...notificationSettings,
+                                rosterUpdate: { ...notificationSettings.rosterUpdate, email: e.target.checked }
+                              })}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
+                            />
+                          </td>
+                          <td className="p-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={notificationSettings.rosterUpdate.push}
+                              onChange={(e) => setNotificationSettings({
+                                ...notificationSettings,
+                                rosterUpdate: { ...notificationSettings.rosterUpdate, push: e.target.checked }
+                              })}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
+                            />
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className={`p-4 border ${activeTheme.cardBorder} rounded-xl ${activeTheme.mutedBg} space-y-3 text-xs text-left`}>
+                    <label className={`text-[10px] uppercase font-bold tracking-wider ${activeTheme.cardSubText} font-mono block text-left`}>
+                      Alert Destination Email Endpoint
+                    </label>
+                    <div className="flex gap-2.5">
+                      <input
+                        type="email"
+                        value={notificationSettings.userEmail}
+                        onChange={(e) => setNotificationSettings({ ...notificationSettings, userEmail: e.target.value })}
+                        className={`flex-1 ${activeTheme.inputBg} border rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-400 focus:border-indigo-500 outline-none font-mono`}
+                        placeholder="operator@drillingportal.com"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => addNotification(`Destination alert endpoint updated to: ${notificationSettings.userEmail}`, "success")}
+                        className={`px-3.5 py-1.5 ${activeTheme.primaryBtn} rounded text-xs font-bold transition-all cursor-pointer`}
+                      >
+                        Apply Override
+                      </button>
+                    </div>
+                    <span className={`block text-[10px] ${activeTheme.cardSubText} text-left`}>
+                      Note: Email relays will dispatch HTML transactional alerts visually rendered in the Simulator Box to this endpoint.
+                    </span>
+                  </div>
+                </div>
+
+                {/* Simulated Delivery Station Column */}
+                <div className="lg:col-span-6 flex flex-col h-[345px] border border-slate-200/90 rounded-xl overflow-hidden shadow-3xs bg-slate-900/5">
+                  <div className="bg-slate-900/5 pb-0 border-b border-slate-200">
+                    <div className="flex items-center justify-between px-4 pt-3 pb-1">
+                      <span className="text-xs font-extrabold uppercase tracking-widest text-[#475569] font-mono text-left block">
+                        📡 Operational Relay Simulator
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 text-[10px] font-bold border border-indigo-500/20 font-mono">
+                        Active Sandbox
+                      </span>
+                    </div>
+                    {/* Simulator tabs */}
+                    <div className="flex px-3 mt-1.5 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveSimulationTab("emails");
+                          setExpandedEmailId(null);
+                        }}
+                        className={`px-3.5 py-1.5 text-xs font-bold font-sans rounded-t-lg transition-all cursor-pointer ${
+                          activeSimulationTab === "emails"
+                            ? "bg-white text-indigo-600 border-t border-x border-slate-200"
+                            : "text-slate-500 hover:text-slate-800 hover:bg-slate-200/50"
+                        }`}
+                      >
+                        📬 Outbox Inbox ({simulatedEmails.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveSimulationTab("pushes");
+                          setExpandedEmailId(null);
+                        }}
+                        className={`px-3.5 py-1.5 text-xs font-bold font-sans rounded-t-lg transition-all cursor-pointer ${
+                          activeSimulationTab === "pushes"
+                            ? "bg-white text-indigo-600 border-t border-x border-slate-200"
+                            : "text-slate-500 hover:text-slate-800 hover:bg-slate-200/50"
+                        }`}
+                      >
+                        📱 Push Payloads ({simulatedPushes.length})
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Sandbox Content Body */}
+                  <div className="bg-white flex-1 overflow-y-auto p-4 flex flex-col text-slate-800">
+                    {activeSimulationTab === "emails" ? (
+                      expandedEmailId ? (
+                        // Expanded Single Transactional Email Template
+                        (() => {
+                          const mail = simulatedEmails.find(e => e.id === expandedEmailId);
+                          if (!mail) return null;
+                          return (
+                            <div className="space-y-3.5 text-left border border-slate-100 rounded-lg p-3 bg-[#FCFDFE] flex-1">
+                              <button
+                                type="button"
+                                onClick={() => setExpandedEmailId(null)}
+                                className="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer font-sans"
+                              >
+                                ← Return to Outbox List
+                              </button>
+                              
+                              {/* Transactional Email Frame simulation */}
+                              <div className="border border-slate-200 rounded-lg shadow-4xs overflow-hidden font-sans text-xs">
+                                <div className="bg-slate-950 text-white p-3 space-y-1 font-mono text-[10px] text-left">
+                                  <div><span className="text-slate-400 font-semibold select-none pr-1">FROM:</span>relays@drill-handover-portal.org</div>
+                                  <div><span className="text-slate-400 font-semibold select-none pr-1">TO:</span>{mail.to}</div>
+                                  <div><span className="text-slate-400 font-semibold select-none pr-1">DATE:</span>{mail.timestamp}</div>
+                                  <div><span className="text-slate-400 font-semibold select-none pr-1">SUBJECT:</span>{mail.subject}</div>
+                                </div>
+                                
+                                <div className="p-4 bg-white text-slate-800 space-y-4">
+                                  {/* Header banner */}
+                                  <div className="flex items-center justify-between border-b pb-2">
+                                    <span className="text-xs font-bold tracking-tight text-slate-900">🔔 Core Portal Update</span>
+                                    <span className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded font-mono font-bold uppercase select-none">
+                                      {mail.type}
+                                    </span>
+                                  </div>
+                                  
+                                  {/* Main Email Message */}
+                                  <div className="leading-relaxed text-slate-700 bg-slate-5/50 border border-slate-150 rounded p-3 text-[11px] font-sans text-left">
+                                    {mail.body}
+                                  </div>
+
+                                  {/* Render structural alert context details of the Event */}
+                                  {mail.details && Object.keys(mail.details).length > 0 && (
+                                    <div className="space-y-1.5 border-t pt-3 text-left">
+                                      <span className="text-[9px] uppercase font-extrabold font-mono tracking-wider text-slate-400 block select-none">Structured Payload Context</span>
+                                      <div className="grid grid-cols-2 gap-2 text-[10px] font-mono bg-slate-50 rounded-lg p-2.5 border border-slate-200/50">
+                                        {mail.details.taskName && (
+                                          <div>
+                                            <span className="block text-slate-400 font-semibold text-[9px] select-none">TASK SPEC</span>
+                                            <span className="text-slate-800 font-bold truncate block">{mail.details.taskName}</span>
+                                          </div>
+                                        )}
+                                        {mail.details.assignee && (
+                                          <div>
+                                            <span className="block text-slate-400 font-semibold text-[9px] select-none">ASSIGNEE</span>
+                                            <span className="text-slate-800 font-bold block">{mail.details.assignee}</span>
+                                          </div>
+                                        )}
+                                        {mail.details.dueDate && (
+                                          <div>
+                                            <span className="block text-slate-400 font-semibold text-[9px] select-none">DEADLINE TARGET</span>
+                                            <span className="text-slate-800 font-bold block">{mail.details.dueDate}</span>
+                                          </div>
+                                        )}
+                                        {mail.details.spaceName && (
+                                          <div>
+                                            <span className="block text-slate-400 font-semibold text-[9px] select-none">HANDOVER ROTATION SPACE</span>
+                                            <span className="text-slate-800 font-bold truncate block">{mail.details.spaceName}</span>
+                                          </div>
+                                        )}
+                                        {mail.details.operatorName && (
+                                          <div>
+                                            <span className="block text-slate-400 font-semibold text-[9px] select-none">PERSONNEL KEY</span>
+                                            <span className="text-slate-800 font-bold block">{mail.details.operatorName}</span>
+                                          </div>
+                                        )}
+                                        {mail.details.signeeName && (
+                                          <div>
+                                            <span className="block text-slate-400 font-semibold text-[9px] select-none">AUTHORIZER</span>
+                                            <span className="text-slate-800 font-bold block">{mail.details.signeeName}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Transactional Email footer */}
+                                  <div className="text-[10px] text-slate-400 text-center pt-3 border-t select-none">
+                                    You received this automated transmission because notifications rules are synced inside your browser's workspace settings.
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        // List Simulated Sent Emails
+                        <div className="space-y-2 flex-1 flex flex-col justify-between">
+                          <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                            {simulatedEmails.length === 0 ? (
+                              <div className="py-12 text-center text-slate-400 text-xs">
+                                <span className="text-2xl block mb-1">📬</span>
+                                No outbound emails generated yet.<br />Assign tasks, add Roster personnel, or toggle sign-off.
+                              </div>
+                            ) : (
+                              simulatedEmails.map(mail => (
+                                <button
+                                  type="button"
+                                  key={mail.id}
+                                  onClick={() => setExpandedEmailId(mail.id)}
+                                  className="w-full text-left p-2.5 border border-slate-100 hover:border-slate-200 bg-[#FCFDFE] hover:bg-slate-50/50 rounded-lg transition-all shadow-4xs cursor-pointer block space-y-1 font-sans text-xs"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-bold text-slate-800 truncate flex-1 block pr-2">
+                                      {mail.subject}
+                                    </span>
+                                    <span className="text-[9px] text-slate-400 font-mono shrink-0 select-none">
+                                      {mail.timestamp.split(", ")[1] || mail.timestamp}
+                                    </span>
+                                  </div>
+                                  <p className="text-slate-500 truncate text-[10px] w-full text-left">{mail.body}</p>
+                                  <div className="flex justify-between items-center pt-1 border-t border-slate-100/50 mt-1">
+                                    <span className="text-[9px] font-mono font-medium text-slate-400 truncate block">TO: {mail.to}</span>
+                                    <span className="text-[9px] font-mono font-bold text-indigo-500 uppercase tracking-wide bg-indigo-50 px-1 rounded shrink-0 select-none">
+                                      {mail.type}
+                                    </span>
+                                  </div>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                          
+                          {simulatedEmails.length > 0 && (
+                            <span className="block text-[10.5px] text-slate-450 text-center font-mono pt-2 border-t mt-auto select-none">
+                              Click any email above to preview full rich HTML layout.
+                            </span>
+                          )}
+                        </div>
+                      )
+                    ) : (
+                      // Tab 2: Simulated Push Log payloads
+                      <div className="space-y-2 text-left">
+                        {simulatedPushes.length === 0 ? (
+                          <div className="py-12 text-center text-slate-400 text-xs">
+                            <span className="text-2xl block mb-1">📱</span>
+                            No desktop/mobile push payloads recorded. Ensure that 'Push' is enabled for triggered events in the rules on the left.
+                          </div>
+                        ) : (
+                          <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                            {simulatedPushes.map(push => (
+                              <div 
+                                key={push.id} 
+                                className="p-3 border border-slate-800 rounded-lg bg-slate-950 text-slate-100 shadow-3xs font-mono text-[11px] space-y-1 relative"
+                              >
+                                <div className="flex items-center justify-between border-b border-slate-900 pb-1 text-[10px] text-slate-450">
+                                  <span>PUSH_NOTIF_PAYLOAD // INTERCEPTED</span>
+                                  <span>{push.timestamp}</span>
+                                </div>
+                                <p className="font-bold text-emerald-400 text-[11px] font-sans flex items-center gap-1">
+                                  🔔 {push.title}
+                                </p>
+                                <p className="text-slate-300 font-sans text-[11px] leading-relaxed text-left">{push.body}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            </div>
           </div>
         )}
 
         {/* 2. Header & Active Rotation Ribbon */}
-        <section className={`${activeTheme.activeRibbonBg} border rounded-xl p-6 shadow-md transition-all`}>
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-6">
-            
-            {/* Left Box: Active state description */}
-            <div className="space-y-1">
-              <span className={`text-[10px] uppercase tracking-wider font-bold ${activeTheme.activeRibbonSubText} font-mono`}>
-                ACTIVE ROTATION SHIFT INTERVAL
-              </span>
-              <h2 className={`text-lg font-bold font-display ${activeTheme.activeRibbonText}`}>
-                Rotational Handover Interval
-              </h2>
-              <div className={`text-xs ${activeTheme.activeRibbonMutedText} flex items-center gap-1`}>
-                <span>Active Cycle Boundary: </span>
-                <span className={`font-mono ${activeTheme.activeRibbonMiddle} px-1.5 py-0.5 rounded border font-medium text-xs`}>
-                  {CURRENT_DATE_STR} 13:13:56 UTC
-                </span>
-              </div>
-            </div>
-
-            {/* Middle: Active Shift Rotation flow */}
-            <div className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-4 ${activeTheme.activeRibbonMiddle} border rounded-lg p-4 max-w-2xl`}>
+        {activeTab === "tracker" ? (
+          <section className={`${activeTheme.activeRibbonBg} border rounded-xl p-6 shadow-md transition-all`}>
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-6">
               
-              {/* Outgoing Outbox */}
-              <div className="flex-1 w-full text-center space-y-1.5">
-                <span className="text-[9px] uppercase tracking-wider font-semibold text-rose-300 font-mono bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/30">
-                  Outgoing Shift Lead
+              {/* Left Box: Active state description */}
+              <div className="space-y-1">
+                <span className={`text-[10px] uppercase tracking-wider font-bold ${activeTheme.activeRibbonSubText} font-mono`}>
+                  ACTIVE ROTATION SHIFT INTERVAL
                 </span>
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold flex items-center justify-center border border-rose-500/30 shrink-0">
-                    {getInitials(dbState.outgoingLead)}
-                  </div>
-                  <select
-                    value={dbState.outgoingLead}
-                    onChange={(e) => updateWorkspaceState((prev) => ({ ...prev, outgoingLead: e.target.value }))}
-                    className={`text-xs sm:text-sm font-semibold text-white bg-slate-900/40 hover:bg-slate-900/60 focus:bg-slate-900/80 border ${activeTheme.isDark ? 'border-slate-700' : 'border-white/20'} focus:border-white focus:outline-none rounded px-2.5 py-1.5 max-w-[210px] text-center font-display cursor-pointer`}
-                  >
-                    <option value="" className="text-slate-800 bg-white">Select Outgoing Lead</option>
-                    {personnelList.map(p => (
-                      <option key={p.id} value={`${p.name} (${p.title})`} className="text-slate-800 bg-white text-left">
-                        {p.name} ({p.title})
-                      </option>
-                    ))}
-                  </select>
+                <h2 className={`text-lg font-bold font-display ${activeTheme.activeRibbonText}`}>
+                  Rotational Handover Interval
+                </h2>
+                <div className={`text-xs ${activeTheme.activeRibbonMutedText} flex items-center gap-1`}>
+                  <span>Active Cycle Boundary: </span>
+                  <span className={`font-mono ${activeTheme.activeRibbonMiddle} px-1.5 py-0.5 rounded border font-medium text-xs`}>
+                    {CURRENT_DATE_STR} 13:13:56 UTC
+                  </span>
                 </div>
               </div>
 
-              {/* Transit Arrow Icon */}
-              <div className="shrink-0 flex flex-col items-center">
-                <ArrowRight className={`w-5 h-5 ${activeTheme.activeRibbonSubText} animate-bounce`} />
-                <span className={`text-[9px] ${activeTheme.activeRibbonMutedText} font-mono`}>Transfer</span>
+              {/* Middle: Active Shift Rotation flow */}
+              <div className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-4 ${activeTheme.activeRibbonMiddle} border rounded-lg p-4 max-w-2xl`}>
+                
+                {/* Outgoing Outbox */}
+                <div className="flex-1 w-full text-center space-y-1.5">
+                  <span className="text-[9px] uppercase tracking-wider font-semibold text-rose-300 font-mono bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/30">
+                    Outgoing Shift Lead
+                  </span>
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold flex items-center justify-center border border-rose-500/30 shrink-0">
+                      {getInitials(dbState.outgoingLead)}
+                    </div>
+                    <select
+                      value={dbState.outgoingLead}
+                      onChange={(e) => updateWorkspaceState((prev) => ({ ...prev, outgoingLead: e.target.value }))}
+                      className={`text-xs sm:text-sm font-semibold text-white bg-slate-900/40 hover:bg-slate-900/60 focus:bg-slate-900/80 border ${activeTheme.isDark ? 'border-slate-700' : 'border-white/20'} focus:border-white focus:outline-none rounded px-2.5 py-1.5 max-w-[210px] text-center font-display cursor-pointer`}
+                    >
+                      <option value="" className="text-slate-800 bg-white">Select Outgoing Lead</option>
+                      {personnelList.map(p => (
+                        <option key={p.id} value={`${p.name} (${p.title})`} className="text-slate-800 bg-white text-left">
+                          {p.name} ({p.title})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Transit Arrow Icon */}
+                <div className="shrink-0 flex flex-col items-center">
+                  <ArrowRight className={`w-5 h-5 ${activeTheme.activeRibbonSubText} animate-bounce`} />
+                  <span className={`text-[9px] ${activeTheme.activeRibbonMutedText} font-mono`}>Transfer</span>
+                </div>
+
+                {/* Incoming Counterpart */}
+                <div className="flex-1 w-full text-center space-y-1.5">
+                  <span className={`text-[9px] uppercase tracking-wider font-semibold ${activeTheme.activeRibbonSubText} font-mono bg-[#3b82f6]/10 px-2 py-0.5 rounded-full border border-[#3b82f6]/30`}>
+                    Incoming Counterpart
+                  </span>
+                  <div className="flex items-center justify-center gap-2">
+                    <div className={`w-8 h-8 rounded-full ${activeTheme.activeRibbonBubble} text-xs font-bold flex items-center justify-center border shrink-0`}>
+                      {getInitials(dbState.incomingLead)}
+                    </div>
+                    <select
+                      value={dbState.incomingLead}
+                      onChange={(e) => updateWorkspaceState((prev) => ({ ...prev, incomingLead: e.target.value }))}
+                      className={`text-xs sm:text-sm font-semibold text-white bg-slate-900/40 hover:bg-slate-900/60 focus:bg-slate-900/80 border ${activeTheme.isDark ? 'border-slate-700' : 'border-white/20'} focus:border-white focus:outline-none rounded px-2.5 py-1.5 max-w-[210px] text-center font-display cursor-pointer`}
+                    >
+                      <option value="" className="text-slate-800 bg-white">Select Incoming Lead</option>
+                      {personnelList.map(p => (
+                        <option key={p.id} value={`${p.name} (${p.title})`} className="text-slate-800 bg-white text-left">
+                          {p.name} ({p.title})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
               </div>
 
-              {/* Incoming Counterpart */}
-              <div className="flex-1 w-full text-center space-y-1.5">
-                <span className={`text-[9px] uppercase tracking-wider font-semibold ${activeTheme.activeRibbonSubText} font-mono bg-[#3b82f6]/10 px-2 py-0.5 rounded-full border border-[#3b82f6]/30`}>
-                  Incoming Counterpart
+              {/* Right: Dynamic high visibility status badge */}
+              <div className="flex flex-col items-center justify-center min-w-36 text-center">
+                <span className={`text-[10px] uppercase font-bold ${activeTheme.activeRibbonMutedText} font-mono mb-1`}>
+                  TRANSITION STATUS
                 </span>
-                <div className="flex items-center justify-center gap-2">
-                  <div className={`w-8 h-8 rounded-full ${activeTheme.activeRibbonBubble} text-xs font-bold flex items-center justify-center border shrink-0`}>
-                    {getInitials(dbState.incomingLead)}
-                  </div>
-                  <select
-                    value={dbState.incomingLead}
-                    onChange={(e) => updateWorkspaceState((prev) => ({ ...prev, incomingLead: e.target.value }))}
-                    className={`text-xs sm:text-sm font-semibold text-white bg-slate-900/40 hover:bg-slate-900/60 focus:bg-slate-900/80 border ${activeTheme.isDark ? 'border-slate-700' : 'border-white/20'} focus:border-white focus:outline-none rounded px-2.5 py-1.5 max-w-[210px] text-center font-display cursor-pointer`}
-                  >
-                    <option value="" className="text-slate-800 bg-white">Select Incoming Lead</option>
-                    {personnelList.map(p => (
-                      <option key={p.id} value={`${p.name} (${p.title})`} className="text-slate-800 bg-white text-left">
-                        {p.name} ({p.title})
-                      </option>
-                    ))}
-                  </select>
+                <div className={`px-4 py-2 rounded-full font-bold text-xs border shadow-xs tracking-tight uppercase ${currentStatus.badgeStyle}`}>
+                  ● {currentStatus.label}
                 </div>
               </div>
 
             </div>
-
-            {/* Right: Dynamic high visibility status badge */}
-            <div className="flex flex-col items-center justify-center min-w-36 text-center">
-              <span className={`text-[10px] uppercase font-bold ${activeTheme.activeRibbonMutedText} font-mono mb-1`}>
-                TRANSITION STATUS
-              </span>
-              <div className={`px-4 py-2 rounded-full font-bold text-xs border shadow-xs tracking-tight uppercase ${currentStatus.badgeStyle}`}>
-                ● {currentStatus.label}
+          </section>
+        ) : (
+          <section className={`${activeTheme.activeRibbonBg} border rounded-xl p-6 shadow-md transition-all`}>
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="space-y-1">
+                <span className={`text-[10px] uppercase tracking-wider font-bold ${activeTheme.activeRibbonSubText} font-mono`}>
+                  CONSOLIDATED OPERATIONS DASHBOARD
+                </span>
+                <h2 className={`text-lg font-bold font-display ${activeTheme.activeRibbonText}`}>
+                  Federated Analytics & Outstanding Deliverables
+                </h2>
+                <p className={`text-xs ${activeTheme.activeRibbonMutedText}`}>
+                  Aggregated metrics, bottlenecks, queues, and task structures compiled dynamically across all active shift repositories.
+                </p>
+              </div>
+              <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2.5 rounded-lg text-white font-sans">
+                <div className="text-right">
+                  <span className={`text-[9px] uppercase font-bold ${activeTheme.activeRibbonSubText} font-mono block leading-none mb-1`}>
+                    Total Tracks
+                  </span>
+                  <span className="text-xl font-bold font-display leading-none">
+                    {workspaces.length}
+                  </span>
+                </div>
+                <div className="h-8 w-px bg-white/20" />
+                <div className="text-right">
+                  <span className={`text-[9px] uppercase font-bold ${activeTheme.activeRibbonSubText} font-mono block leading-none mb-1`}>
+                    Consolidated Tasks
+                  </span>
+                  <span className="text-xl font-bold font-display leading-none">
+                    {Object.values(allWorkspacesData).reduce<number>((sum, ws: HandoverState) => sum + (ws.tasks?.length || 0), 0) + 
+                     Object.values(allWorkspacesData).reduce<number>((sum, ws: HandoverState) => sum + (ws.backlog?.length || 0), 0)}
+                  </span>
+                </div>
               </div>
             </div>
-
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Main Content Tab Navigation */}
         <div className={`flex items-center justify-start border-b ${activeTheme.cardBorder} pb-2 pt-1`}>
@@ -2124,16 +3051,25 @@ export default function App() {
                               } ${activeTheme.mutedBg}/10 border-b ${activeTheme.cardBorder}`}
                             >
                               <td className="p-3 text-center">
-                                <button
+                                <motion.button
+                                  whileTap={{ scale: 0.9 }}
+                                  whileHover={{ scale: 1.1 }}
                                   onClick={() => handleToggleTask(task.id)}
-                                  className={`focus:outline-none inline-block align-middle cursor-pointer transition-transform duration-100 active:scale-95 ${activeTheme.cardSubText} hover:${activeTheme.accentText}`}
+                                  className={`focus:outline-none inline-block align-middle cursor-pointer ${activeTheme.cardSubText} hover:${activeTheme.accentText}`}
                                 >
-                                  {task.completed ? (
-                                    <CheckSquare className="w-5 h-5 text-emerald-600 fill-emerald-500/10" />
-                                  ) : (
-                                    <Square className="w-5 h-5 text-slate-305" />
-                                  )}
-                                </button>
+                                  <motion.div
+                                    key={task.completed ? "completed" : "pending"}
+                                    initial={{ scale: 0.82, rotate: task.completed ? -15 : 15 }}
+                                    animate={{ scale: 1, rotate: 0 }}
+                                    transition={{ type: "spring", stiffness: 450, damping: 15 }}
+                                  >
+                                    {task.completed ? (
+                                      <CheckSquare className="w-5 h-5 text-emerald-600 fill-emerald-500/10" />
+                                    ) : (
+                                      <Square className="w-5 h-5 text-slate-305" />
+                                    )}
+                                  </motion.div>
+                                </motion.button>
                               </td>
 
                               <td className="p-3 font-medium leading-relaxed">
@@ -2352,16 +3288,25 @@ export default function App() {
                               } border-b ${activeTheme.cardBorder}`}
                             >
                               <td className="p-3 text-center">
-                                <button
+                                <motion.button
+                                  whileTap={{ scale: 0.9 }}
+                                  whileHover={{ scale: 1.1 }}
                                   onClick={() => handleToggleBacklog(item.id)}
                                   className={`focus:outline-none inline-block align-middle cursor-pointer ${activeTheme.cardSubText} hover:${activeTheme.accentText}`}
                                 >
-                                  {item.completed ? (
-                                    <CheckSquare className="w-5 h-5 text-emerald-600 fill-emerald-500/10" />
-                                  ) : (
-                                    <Square className="w-5 h-5 text-slate-305" />
-                                  )}
-                                </button>
+                                  <motion.div
+                                    key={item.completed ? "completed" : "pending"}
+                                    initial={{ scale: 0.82, rotate: item.completed ? -15 : 15 }}
+                                    animate={{ scale: 1, rotate: 0 }}
+                                    transition={{ type: "spring", stiffness: 450, damping: 15 }}
+                                  >
+                                    {item.completed ? (
+                                      <CheckSquare className="w-5 h-5 text-emerald-600 fill-emerald-500/10" />
+                                    ) : (
+                                      <Square className="w-5 h-5 text-slate-305" />
+                                    )}
+                                  </motion.div>
+                                </motion.button>
                               </td>
 
                               <td className="p-3 font-medium leading-relaxed">
@@ -2514,223 +3459,230 @@ export default function App() {
               </>
             ) : (
               <div className="space-y-6">
-                
-                {/* 1. Global KPI Cards Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  
-                  {/* Card 1: Open Shift Tasks */}
-                  <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl p-4 shadow-3xs flex flex-col justify-between relative overflow-hidden h-28 hover:shadow-2xs transition-shadow`}>
-                    <div className="absolute top-0 left-0 w-full h-1.5 bg-indigo-500" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 font-mono">
-                      Open Shift Tasks
-                    </span>
-                    <div className="flex items-baseline justify-between mt-2">
-                      <span className={`text-3xl font-black font-display leading-none ${activeTheme.cardTitleText}`}>
-                        {dbState.tasks.filter((t) => !t.completed).length}
-                      </span>
-                      <span className={`text-xs ${activeTheme.cardSubText} font-mono font-medium`}>
-                        active cycle
-                      </span>
-                    </div>
-                  </div>
+                {(() => {
+                  const allTasks = Object.values(allWorkspacesData).flatMap((ws: HandoverState) => ws.tasks || []);
+                  const allBacklog = Object.values(allWorkspacesData).flatMap((ws: HandoverState) => ws.backlog || []);
 
-                  {/* Card 2: Critical Bottlenecks */}
-                  <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl p-4 shadow-3xs flex flex-col justify-between relative overflow-hidden h-28 hover:shadow-2xs transition-shadow`}>
-                    <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-500" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500 font-mono">
-                      Critical Bottlenecks
-                    </span>
-                    <div className="flex items-baseline justify-between mt-2">
-                      <span className="text-3xl font-black font-display text-rose-500 leading-none">
-                        {dbState.tasks.filter((t) => !t.completed && (t.priority === "High" || calculateDaysRemaining(t.dueDate).isOverdue)).length}
-                      </span>
-                      <span className="text-xs text-rose-400 font-mono font-medium">
-                        high & overdue
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Card 3: Total Persistent Backlog */}
-                  <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl p-4 shadow-3xs flex flex-col justify-between relative overflow-hidden h-28 hover:shadow-2xs transition-shadow`}>
-                    <div className="absolute top-0 left-0 w-full h-1.5 bg-amber-500" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500 font-mono">
-                      Total Persistent Backlog
-                    </span>
-                    <div className="flex items-baseline justify-between mt-2">
-                      <span className={`text-3xl font-black font-display leading-none ${activeTheme.cardTitleText}`}>
-                        {dbState.backlog.filter((b) => !b.completed).length}
-                      </span>
-                      <span className={`text-xs ${activeTheme.cardSubText} font-mono font-medium`}>
-                        pending log
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Card 4: Rotation Sign-Off Rate */}
-                  <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl p-4 shadow-3xs flex flex-col justify-between relative overflow-hidden h-28 hover:shadow-2xs transition-shadow`}>
-                    <div className="absolute top-0 left-0 w-full h-1.5 bg-emerald-500" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 font-mono">
-                      Rotation Sign-Off Rate
-                    </span>
-                    <div className="flex items-baseline justify-between mt-2">
-                      <span className="text-3xl font-black font-display text-emerald-500 leading-none">
-                        {(() => {
-                          const total = dbState.tasks.length + dbState.backlog.length;
-                          const completed = dbState.tasks.filter((t) => t.completed).length + dbState.backlog.filter((b) => b.completed).length;
-                          return total > 0 ? Math.round((completed / total) * 100) : 100;
-                        })()}%
-                      </span>
-                      <span className={`text-xs ${activeTheme.cardSubText} font-mono font-medium`}>
-                        overall completed
-                      </span>
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* 2. Secondary Panel Grid: Aging and Resource Matrix side-by-side on lg */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                  {/* Task Aging & Distribution Panel */}
-                  <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl overflow-hidden shadow-xs p-5 space-y-4`}>
-                    <div className={`border-b ${activeTheme.cardBorder} pb-2.5`}>
-                      <h4 className={`text-xs font-bold font-display uppercase tracking-wider ${activeTheme.cardTitleText} flex items-center gap-1.5`}>
-                        ⏳ Backlog Aging and Distribution Timeline
-                      </h4>
-                      <p className={`text-[10px] ${activeTheme.cardSubText} mt-0.5 leading-relaxed font-sans`}>
-                        Evaluates outstanding backlogs grouped by duration since record creation (relative to current date).
-                      </p>
-                    </div>
-
-                    <div className="space-y-4 pt-1">
-                      {(() => {
-                        const openBacklogs = dbState.backlog.filter(b => !b.completed);
-                        const totalCount = openBacklogs.length;
+                  return (
+                    <>
+                      {/* 1. Global KPI Cards Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         
-                        const groups = [
-                          { label: "Critical Age (> 30 Days)", count: openBacklogs.filter(b => calculateAgingDays(b.backlogDate) > 30).length, color: "bg-rose-500" },
-                          { label: "Warning Age (15 - 30 Days)", count: openBacklogs.filter(b => { const d = calculateAgingDays(b.backlogDate); return d > 14 && d <= 30; }).length, color: "bg-amber-500" },
-                          { label: "Moderate Age (8 - 14 Days)", count: openBacklogs.filter(b => { const d = calculateAgingDays(b.backlogDate); return d > 7 && d <= 14; }).length, color: "bg-indigo-500" },
-                          { label: "Recent Queue (≤ 7 Days)", count: openBacklogs.filter(b => calculateAgingDays(b.backlogDate) <= 7).length, color: "bg-emerald-500" },
-                        ];
+                        {/* Card 1: Open Shift Tasks */}
+                        <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl p-4 shadow-3xs flex flex-col justify-between relative overflow-hidden h-28 hover:shadow-2xs transition-shadow`}>
+                          <div className="absolute top-0 left-0 w-full h-1.5 bg-indigo-500" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 font-mono">
+                            Open Shift Tasks
+                          </span>
+                          <div className="flex items-baseline justify-between mt-2">
+                            <span className={`text-3xl font-black font-display leading-none ${activeTheme.cardTitleText}`}>
+                              {allTasks.filter((t) => !t.completed).length}
+                            </span>
+                            <span className={`text-xs ${activeTheme.cardSubText} font-mono font-medium`}>
+                              active cycle
+                            </span>
+                          </div>
+                        </div>
 
-                        return (
-                          <>
-                            {totalCount === 0 ? (
-                              <div className={`py-12 text-center text-slate-400 ${activeTheme.mutedBg} border ${activeTheme.cardBorder} rounded-lg p-4`}>
-                                <span className="text-xl">✨</span>
-                                <p className={`font-semibold text-xs mt-1 ${activeTheme.cardTitleText}`}>All Backlog Items Cleared!</p>
-                                <p className={`text-[10px] ${activeTheme.cardSubText} mt-0.5`}>There are zero open persistent items aging in storage.</p>
-                              </div>
-                            ) : (
-                              <div className="space-y-3">
-                                {groups.map((g) => {
-                                  const pct = totalCount > 0 ? Math.round((g.count / totalCount) * 100) : 0;
-                                  return (
-                                    <div key={g.label} className="space-y-1">
-                                      <div className="flex justify-between items-center text-xs">
-                                        <span className={`font-semibold ${activeTheme.cardTitleText}`}>{g.label}</span>
-                                        <span className={`font-mono ${activeTheme.cardTitleText} font-bold`}>{g.count} <span className={`text-[10px] ${activeTheme.cardSubText}`}>({pct}%)</span></span>
-                                      </div>
-                                      <div className={`w-full h-2.5 ${activeTheme.mutedBg} rounded-full border ${activeTheme.cardBorder} overflow-hidden`}>
-                                        <div 
-                                          className={`h-full ${g.color} rounded-full transition-all duration-500`} 
-                                          style={{ width: `${pct}%` }} 
-                                        />
-                                      </div>
+                        {/* Card 2: Critical Bottlenecks */}
+                        <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl p-4 shadow-3xs flex flex-col justify-between relative overflow-hidden h-28 hover:shadow-2xs transition-shadow`}>
+                          <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-500" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500 font-mono">
+                            Critical Bottlenecks
+                          </span>
+                          <div className="flex items-baseline justify-between mt-2">
+                            <span className="text-3xl font-black font-display text-rose-500 leading-none">
+                              {allTasks.filter((t) => !t.completed && (t.priority === "High" || calculateDaysRemaining(t.dueDate).isOverdue)).length}
+                            </span>
+                            <span className="text-xs text-rose-400 font-mono font-medium">
+                              high & overdue
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Card 3: Total Persistent Backlog */}
+                        <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl p-4 shadow-3xs flex flex-col justify-between relative overflow-hidden h-28 hover:shadow-2xs transition-shadow`}>
+                          <div className="absolute top-0 left-0 w-full h-1.5 bg-amber-500" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500 font-mono">
+                            Total Persistent Backlog
+                          </span>
+                          <div className="flex items-baseline justify-between mt-2">
+                            <span className={`text-3xl font-black font-display leading-none ${activeTheme.cardTitleText}`}>
+                              {allBacklog.filter((b) => !b.completed).length}
+                            </span>
+                            <span className={`text-xs ${activeTheme.cardSubText} font-mono font-medium`}>
+                              pending log
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Card 4: Rotation Sign-Off Rate */}
+                        <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl p-4 shadow-3xs flex flex-col justify-between relative overflow-hidden h-28 hover:shadow-2xs transition-shadow`}>
+                          <div className="absolute top-0 left-0 w-full h-1.5 bg-emerald-500" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 font-mono">
+                            Rotation Sign-Off Rate
+                          </span>
+                          <div className="flex items-baseline justify-between mt-2">
+                            <span className="text-3xl font-black font-display text-emerald-500 leading-none">
+                              {(() => {
+                                const total = allTasks.length + allBacklog.length;
+                                const completed = allTasks.filter((t) => t.completed).length + allBacklog.filter((b) => b.completed).length;
+                                return total > 0 ? Math.round((completed / total) * 100) : 100;
+                              })()}%
+                            </span>
+                            <span className={`text-xs ${activeTheme.cardSubText} font-mono font-medium`}>
+                              overall completed
+                            </span>
+                          </div>
+                        </div>
+
+                      </div>
+
+                      {/* 2. Secondary Panel Grid: Aging and Resource Matrix side-by-side on lg */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                        {/* Task Aging & Distribution Panel */}
+                        <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl overflow-hidden shadow-xs p-5 space-y-4`}>
+                          <div className={`border-b ${activeTheme.cardBorder} pb-2.5`}>
+                            <h4 className={`text-xs font-bold font-display uppercase tracking-wider ${activeTheme.cardTitleText} flex items-center gap-1.5`}>
+                              ⏳ Backlog Aging and Distribution Timeline
+                            </h4>
+                            <p className={`text-[10px] ${activeTheme.cardSubText} mt-0.5 leading-relaxed font-sans`}>
+                              Evaluates outstanding backlogs grouped by duration since record creation (relative to current date).
+                            </p>
+                          </div>
+
+                          <div className="space-y-4 pt-1">
+                            {(() => {
+                              const openBacklogs = allBacklog.filter(b => !b.completed);
+                              const totalCount = openBacklogs.length;
+                              
+                              const groups = [
+                                { label: "Critical Age (> 30 Days)", count: openBacklogs.filter(b => calculateAgingDays(b.backlogDate) > 30).length, color: "bg-rose-500" },
+                                { label: "Warning Age (15 - 30 Days)", count: openBacklogs.filter(b => { const d = calculateAgingDays(b.backlogDate); return d > 14 && d <= 30; }).length, color: "bg-amber-500" },
+                                { label: "Moderate Age (8 - 14 Days)", count: openBacklogs.filter(b => { const d = calculateAgingDays(b.backlogDate); return d > 7 && d <= 14; }).length, color: "bg-indigo-500" },
+                                { label: "Recent Queue (≤ 7 Days)", count: openBacklogs.filter(b => calculateAgingDays(b.backlogDate) <= 7).length, color: "bg-emerald-500" },
+                              ];
+
+                              return (
+                                <>
+                                  {totalCount === 0 ? (
+                                    <div className={`py-12 text-center text-slate-400 ${activeTheme.mutedBg} border ${activeTheme.cardBorder} rounded-lg p-4`}>
+                                      <span className="text-xl">✨</span>
+                                      <p className={`font-semibold text-xs mt-1 ${activeTheme.cardTitleText}`}>All Backlog Items Cleared!</p>
+                                      <p className={`text-[10px] ${activeTheme.cardSubText} mt-0.5`}>There are zero open persistent items aging in storage.</p>
                                     </div>
-                                  );
-                                })}
-                                <p className={`text-[10px] ${activeTheme.cardSubText} text-center font-mono pt-1`}>
-                                  Evaluated against reference date {CURRENT_DATE_STR} across {totalCount} open backlogs.
-                                </p>
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
+                                  ) : (
+                                    <div className="space-y-3">
+                                      {groups.map((g) => {
+                                        const pct = totalCount > 0 ? Math.round((g.count / totalCount) * 100) : 0;
+                                        return (
+                                          <div key={g.label} className="space-y-1">
+                                            <div className="flex justify-between items-center text-xs">
+                                              <span className={`font-semibold ${activeTheme.cardTitleText}`}>{g.label}</span>
+                                              <span className={`font-mono ${activeTheme.cardTitleText} font-bold`}>{g.count} <span className={`text-[10px] ${activeTheme.cardSubText}`}>({pct}%)</span></span>
+                                            </div>
+                                            <div className={`w-full h-2.5 ${activeTheme.mutedBg} rounded-full border ${activeTheme.cardBorder} overflow-hidden`}>
+                                              <div 
+                                                className={`h-full ${g.color} rounded-full transition-all duration-500`} 
+                                                style={{ width: `${pct}%` }} 
+                                              />
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                      <p className={`text-[10px] ${activeTheme.cardSubText} text-center font-mono pt-1`}>
+                                        Evaluated against reference date {CURRENT_DATE_STR} across {totalCount} open backlogs.
+                                      </p>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        </div>
 
-                  {/* Resource Workload Matrix Panel */}
-                  <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl overflow-hidden shadow-xs p-5 space-y-4`}>
-                    <div className={`border-b ${activeTheme.cardBorder} pb-2.5`}>
-                      <h4 className={`text-xs font-bold font-display uppercase tracking-wider ${activeTheme.cardTitleText} flex items-center gap-1.5`}>
-                        👥 Resource Workload & Priority Matrix
-                      </h4>
-                      <p className={`text-[10px] ${activeTheme.cardSubText} mt-0.5 leading-relaxed font-sans`}>
-                        Tracks open task counts assigned across active on-shift operators and backlog queues.
-                      </p>
-                    </div>
+                        {/* Resource Workload Matrix Panel */}
+                        <div className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl overflow-hidden shadow-xs p-5 space-y-4`}>
+                          <div className={`border-b ${activeTheme.cardBorder} pb-2.5`}>
+                            <h4 className={`text-xs font-bold font-display uppercase tracking-wider ${activeTheme.cardTitleText} flex items-center gap-1.5`}>
+                              👥 Resource Workload & Priority Matrix
+                            </h4>
+                            <p className={`text-[10px] ${activeTheme.cardSubText} mt-0.5 leading-relaxed font-sans`}>
+                              Tracks open task counts assigned across active on-shift operators and backlog queues.
+                            </p>
+                          </div>
 
-                    <div className={`overflow-x-auto border ${activeTheme.cardBorder} rounded-lg`}>
-                      {(() => {
-                        const activeOpenTasks = dbState.tasks.filter(t => !t.completed);
-                        const activeOpenBacklog = dbState.backlog.filter(b => !b.completed);
-                        
-                        const uniqOwners = Array.from(new Set([
-                          ...activeOpenTasks.map(t => t.ownerName),
-                          ...activeOpenBacklog.map(b => b.ownerName)
-                        ])).filter(Boolean);
+                          <div className={`overflow-x-auto border ${activeTheme.cardBorder} rounded-lg`}>
+                            {(() => {
+                              const activeOpenTasks = allTasks.filter(t => !t.completed);
+                              const activeOpenBacklog = allBacklog.filter(b => !b.completed);
+                              
+                              const uniqOwners = Array.from(new Set([
+                                ...activeOpenTasks.map(t => t.ownerName),
+                                ...activeOpenBacklog.map(b => b.ownerName)
+                              ])).filter(Boolean);
 
-                        const matrixRows = uniqOwners.map(owner => {
-                          const high = activeOpenTasks.filter(t => t.ownerName === owner && t.priority === "High").length +
-                                       activeOpenBacklog.filter(b => b.ownerName === owner && b.priority === "High").length;
-                          const med = activeOpenTasks.filter(t => t.ownerName === owner && t.priority === "Medium").length +
-                                      activeOpenBacklog.filter(b => b.ownerName === owner && b.priority === "Medium").length;
-                          const low = activeOpenTasks.filter(t => t.ownerName === owner && t.priority === "Low").length +
-                                      activeOpenBacklog.filter(b => b.ownerName === owner && b.priority === "Low").length;
-                          return { owner, high, med, low, total: high + med + low };
-                        }).sort((a, b) => b.total - a.total);
+                              const matrixRows = uniqOwners.map(owner => {
+                                const high = activeOpenTasks.filter(t => t.ownerName === owner && t.priority === "High").length +
+                                             activeOpenBacklog.filter(b => b.ownerName === owner && b.priority === "High").length;
+                                const med = activeOpenTasks.filter(t => t.ownerName === owner && t.priority === "Medium").length +
+                                            activeOpenBacklog.filter(b => b.ownerName === owner && b.priority === "Medium").length;
+                                const low = activeOpenTasks.filter(t => t.ownerName === owner && t.priority === "Low").length +
+                                            activeOpenBacklog.filter(b => b.ownerName === owner && b.priority === "Low").length;
+                                return { owner, high, med, low, total: high + med + low };
+                              }).sort((a, b) => b.total - a.total);
 
-                        if (matrixRows.length === 0) {
-                          return (
-                            <div className={`py-12 text-center text-slate-400 ${activeTheme.mutedBg} p-4`}>
-                              <span className="text-xl">✅</span>
-                              <p className={`font-semibold text-xs mt-1 ${activeTheme.cardTitleText}`}>Perfect Workload Balance</p>
-                              <p className={`text-[10px] ${activeTheme.cardSubText} mt-0.5`}>All engineers currently have zero pending open actions.</p>
-                            </div>
-                          );
-                        }
+                              if (matrixRows.length === 0) {
+                                return (
+                                  <div className={`py-12 text-center text-slate-400 ${activeTheme.mutedBg} p-4`}>
+                                    <span className="text-xl">✅</span>
+                                    <p className={`font-semibold text-xs mt-1 ${activeTheme.cardTitleText}`}>Perfect Workload Balance</p>
+                                    <p className={`text-[10px] ${activeTheme.cardSubText} mt-0.5`}>All engineers currently have zero pending open actions.</p>
+                                  </div>
+                                );
+                              }
 
-                        return (
-                          <table className="w-full text-left text-xs border-collapse">
-                            <thead>
-                              <tr className={`${activeTheme.mutedBg} ${activeTheme.cardSubText} border-b ${activeTheme.cardBorder} font-mono text-[10px] uppercase font-bold`}>
-                                <th className="p-2.5">Resource Name</th>
-                                <th className="p-2.5 text-center text-rose-500">High</th>
-                                <th className="p-2.5 text-center text-amber-500">Med</th>
-                                <th className="p-2.5 text-center text-indigo-500 font-bold">Low</th>
-                                <th className="p-2.5 text-center font-bold">Total</th>
-                              </tr>
-                            </thead>
-                            <tbody className={`divide-y ${activeTheme.cardBorder}`}>
-                              {matrixRows.map(row => (
-                                <tr key={row.owner} className="hover:opacity-90 transition-opacity">
-                                  <td className={`p-2.5 font-semibold ${activeTheme.cardTitleText}`}>{row.owner}</td>
-                                  <td className={`p-2.5 text-center font-mono font-bold ${row.high ? "text-rose-500 bg-rose-500/10" : "text-slate-355"}`}>
-                                    {row.high || "-"}
-                                  </td>
-                                  <td className={`p-2.5 text-center font-mono font-bold ${row.med ? "text-amber-500 bg-amber-500/10" : "text-slate-355"}`}>
-                                    {row.med || "-"}
-                                  </td>
-                                  <td className={`p-2.5 text-center font-mono font-bold ${row.low ? "text-indigo-500 bg-indigo-500/10" : "text-slate-355"}`}>
-                                    {row.low || "-"}
-                                  </td>
-                                  <td className={`p-2.5 text-center font-mono font-bold ${activeTheme.mutedBg} ${activeTheme.cardTitleText} border-l ${activeTheme.cardBorder}`}>
-                                    {row.total}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        );
-                      })()}
-                    </div>
-                  </div>
+                              return (
+                                <table className="w-full text-left text-xs border-collapse">
+                                  <thead>
+                                    <tr className={`${activeTheme.mutedBg} ${activeTheme.cardSubText} border-b ${activeTheme.cardBorder} font-mono text-[10px] uppercase font-bold`}>
+                                      <th className="p-2.5">Resource Name</th>
+                                      <th className="p-2.5 text-center text-rose-500">High</th>
+                                      <th className="p-2.5 text-center text-amber-500">Med</th>
+                                      <th className="p-2.5 text-center text-indigo-500 font-bold">Low</th>
+                                      <th className="p-2.5 text-center font-bold">Total</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className={`divide-y ${activeTheme.cardBorder}`}>
+                                    {matrixRows.map(row => (
+                                      <tr key={row.owner} className="hover:opacity-90 transition-opacity">
+                                        <td className={`p-2.5 font-semibold ${activeTheme.cardTitleText}`}>{row.owner}</td>
+                                        <td className={`p-2.5 text-center font-mono font-bold ${row.high ? "text-rose-500 bg-rose-500/10" : "text-slate-350"}`}>
+                                          {row.high || "-"}
+                                        </td>
+                                        <td className={`p-2.5 text-center font-mono font-bold ${row.med ? "text-amber-500 bg-amber-500/10" : "text-slate-355"}`}>
+                                          {row.med || "-"}
+                                        </td>
+                                        <td className={`p-2.5 text-center font-mono font-bold ${row.low ? "text-indigo-500 bg-indigo-500/10" : "text-slate-355"}`}>
+                                          {row.low || "-"}
+                                        </td>
+                                        <td className={`p-2.5 text-center font-mono font-bold ${activeTheme.mutedBg} ${activeTheme.cardTitleText} border-l ${activeTheme.cardBorder}`}>
+                                          {row.total}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              );
+                            })()}
+                          </div>
+                        </div>
 
-                </div>
-
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -2929,6 +3881,33 @@ export default function App() {
         <p>Team Handover & Task Backlog Platform • Professional Core Operations Dashboard</p>
         <p className="mt-1">Vite + React Core Runtime environment successfully validated</p>
       </footer>
+
+      {/* Floating Push Notifications Sandbox overlays */}
+      <div className="fixed bottom-5 right-5 z-100 flex flex-col gap-3.5 max-w-sm w-full select-none pointer-events-none pr-2">
+        {activePushAlerts.map(push => (
+          <motion.div
+            key={push.id}
+            initial={{ opacity: 0, scale: 0.9, y: 30 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: -20 }}
+            className="pointer-events-auto bg-slate-900 text-slate-100 border border-slate-700/80 rounded-xl shadow-2xl p-4 font-sans space-y-1 relative cursor-pointer"
+            onClick={() => setActivePushAlerts(prev => prev.filter(p => p.id !== push.id))}
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 font-mono text-[9px] text-slate-400 text-left">
+              <span className="flex items-center gap-1 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                SYSTEM PUSH DISPATCH
+              </span>
+              <span>{push.timestamp}</span>
+            </div>
+            <p className="font-extrabold text-xs text-emerald-400 tracking-tight leading-snug text-left pt-0.5">
+              {push.title}
+            </p>
+            <p className="text-slate-200 text-xs leading-relaxed text-left">{push.body}</p>
+            <span className="absolute top-2.5 right-2.5 text-slate-500 hover:text-slate-350 text-xs font-bold leading-none select-none">×</span>
+          </motion.div>
+        ))}
+      </div>
     </div>
   );
 }

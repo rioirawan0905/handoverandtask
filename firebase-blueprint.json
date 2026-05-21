@@ -40,12 +40,28 @@
         }
       },
       "required": ["outgoingLead", "incomingLead", "status", "tasks", "backlog", "history", "signoffChecklist"]
+    },
+    "rosterSettings": {
+      "title": "Roster Settings",
+      "description": "The database document storing the global personnel roster list.",
+      "type": "object",
+      "properties": {
+        "list": {
+          "type": "array",
+          "description": "The list of registered personnel items, each containing an ID, full name, and job title."
+        }
+      },
+      "required": ["list"]
     }
   },
   "firestore": {
     "handoverSystem/{workspaceId}": {
       "schema": "currentWorkspace",
       "description": "A dynamic team handover workspace document containing rotational status, current tasks, aging backlog items, history logs, and sign-off validations."
+    },
+    "handoverSettings/{settingsId}": {
+      "schema": "rosterSettings",
+      "description": "Settings for the team handover, e.g. the personnel roster"
     }
   }
 }
