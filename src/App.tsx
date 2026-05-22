@@ -471,11 +471,38 @@ export default function App() {
     return "";
   });
 
+  const [apiTestStatus, setApiTestStatus] = useState<{ status: "idle" | "testing" | "success" | "error"; message?: string }>({ status: "idle" });
+
   const getApiUrl = (path: string) => {
     const base = apiBaseUrl.trim();
     if (!base) return path;
     const cleanBase = base.replace(/\/+$/, "");
     return `${cleanBase}${path}`;
+  };
+
+  const handleTestApiConnection = async () => {
+    setApiTestStatus({ status: "testing" });
+    const testUrl = getApiUrl("/api/health");
+    try {
+      const res = await fetch(testUrl, {
+        method: "GET",
+        headers: { "Accept": "application/json" }
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP Error status: ${res.status} (${res.statusText})`);
+      }
+      const data = await res.json();
+      if (data && data.status === "ok") {
+        setApiTestStatus({ status: "success", message: `Connected successfully! Server time: ${data.timestamp || "OK"}` });
+        addNotification("API connection test passed! Server is online and CORS is ready.", "success");
+      } else {
+        throw new Error("Invalid response format received from server.");
+      }
+    } catch (err: any) {
+      console.error("API test error:", err);
+      setApiTestStatus({ status: "error", message: err.message || "Failed to fetch" });
+      addNotification(`API test failed: ${err.message || "Failed to fetch"}. Please configure correct public URL or check CORS constraints.`, "warning");
+    }
   };
 
   const [firestoreInstance, setFirestoreInstance] = useState<any>(null);
@@ -2034,12 +2061,17 @@ export default function App() {
           addNotification(`⚠️ SMTP block: ${data.message}`, "warning");
         }
       } catch (err: any) {
+        // Since database state updated successfully on line 1993, the handover itself is 100% saved!
+        // We will show a helpful explanation rather than a scary error.
+        const isFailedToFetch = err.message?.includes("Failed to fetch") || err.message?.includes("failed to fetch");
         setSignoffResult({
-          status: "error",
-          message: `Handover database entry saved, but request failed to connect to email endpoint API server: ${err.message}`,
+          status: "warning_success",
+          message: isFailedToFetch
+            ? `Serah terima (Handover) telah berhasil disimpan ke database lokal / Cloud Sync Anda! Namun, email fisik tidak terkirim karena platform berjalan di hosting statis Cloudflare Pages (tanpa server backend Cloud Run). Riwayat transaksi lengkap Anda tetap terdata dan dapat dilihat di "Simulation Sandbox & Outbox Logs" di bagian bawah layar.`
+            : `Handover database entry saved, but request failed to connect to email endpoint API server: ${err.message}`,
           sentTo: signoffEmailOverride
         });
-        addNotification(`⚠️ SMTP response timeout`, "warning");
+        addNotification(isFailedToFetch ? `ℹ️ Handover saved (Email server offline / Cloudflare Mode)` : `⚠️ SMTP response timeout`, "warning");
       }
     } else {
       setSignoffResult({
@@ -2564,7 +2596,7 @@ export default function App() {
                     {signoffResult.status === "success" ? "🎉" : "⚠️"}
                   </div>
                   <h4 className="text-sm font-extrabold text-slate-900 uppercase tracking-tight">
-                    {signoffResult.status === "success" ? "Handover Rotation Success!" : "Handover Saved with SMTP Warning"}
+                    {signoffResult.status === "success" ? "Handover Rotation Success!" : "Handover Saved (SMTP Offline / Cloudflare Mode)"}
                   </h4>
                   <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-150 text-left">
                     {signoffResult.message}
@@ -3222,46 +3254,99 @@ service cloud.firestore {
                 )}
 
                 {/* Custom API Base URL Configuration */}
-                <div className={`mt-4 pt-4 border-t ${activeTheme.cardBorder} space-y-2`}>
+                <div className={`mt-4 pt-4 border-t ${activeTheme.cardBorder} space-y-3`}>
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs">🌐</span>
                     <span className={`text-[11px] font-bold uppercase tracking-wider ${activeTheme.cardTitleText} font-mono`}>
-                      Backend API Endpoint (Cloudflare / Multi-Host)
+                      Backend API Endpoint (Cloudflare / Cross-Origin Host)
                     </span>
                   </div>
-                  <p className={`text-[10px] ${activeTheme.cardSubText} leading-relaxed`}>
-                    If your frontend is hosted on Cloudflare, point this endpoint to your live Cloud Run backend URL to prevent CORS or 405 errors.
-                  </p>
+                  
+                  <div className={`text-[11px] ${activeTheme.isDark ? 'bg-slate-900 border-slate-800' : 'bg-amber-50 border-amber-200'} border rounded-lg p-3 space-y-2 text-left leading-relaxed`}>
+                    <p className="font-semibold text-amber-800 text-xs">⚠️ Cloudflare Static Site Connection Note</p>
+                    <p className={`${activeTheme.cardSubText} text-[10px]`}>
+                      When you deploy or export this frontend to static environments like **Cloudflare Pages**, the relative paths (like <code className="font-mono bg-slate-100 p-0.5 rounded text-rose-600">/api/send-email</code>) will fail because static hosts do not run on a Node/Express backend.
+                    </p>
+                    <p className={`${activeTheme.cardSubText} text-[10px]`}>
+                      To fix this, you must run your compiled backend container on a public server (such as your **Google Cloud Run** container URL) and link it below.
+                    </p>
+                  </div>
+
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="e.g. https://ais-pre-...-334655952811.europe-west1.run.app"
+                      placeholder="e.g. https://ais-pre-aopq5mxr3yvd5dacnrbmpq-334655952811.europe-west1.run.app"
                       value={apiBaseUrl}
                       onChange={(e) => {
-                        const val = e.target.value;
+                        const val = e.target.value.trim();
                         setApiBaseUrl(val);
-                        localStorage.setItem("handover_api_base_url", val);
+                        if (val) {
+                          localStorage.setItem("handover_api_base_url", val);
+                        } else {
+                          localStorage.removeItem("handover_api_base_url");
+                        }
                       }}
-                      className={`${activeTheme.inputBg} border rounded px-2.5 py-1 text-xs focus:ring-1 focus:ring-indigo-400 outline-none flex-1 font-mono shadow-xs`}
+                      className={`${activeTheme.inputBg} border rounded px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 outline-none flex-1 font-mono shadow-xs`}
                     />
+                    <button
+                      type="button"
+                      onClick={handleTestApiConnection}
+                      disabled={apiTestStatus.status === "testing"}
+                      className={`px-3 py-1.5 text-white rounded text-xs font-bold shadow-xs transition-all active:scale-98 cursor-pointer ${
+                        apiTestStatus.status === "testing" 
+                          ? "bg-slate-400 cursor-not-allowed" 
+                          : "bg-indigo-650 hover:bg-indigo-700"
+                      }`}
+                    >
+                      {apiTestStatus.status === "testing" ? "Testing..." : "Test Connection"}
+                    </button>
                     {apiBaseUrl && (
                       <button
                         type="button"
                         onClick={() => {
                           setApiBaseUrl("");
                           localStorage.removeItem("handover_api_base_url");
+                          setApiTestStatus({ status: "idle" });
                           addNotification("Reverted to local/relative API path.", "info");
                         }}
-                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded transition-colors border border-slate-300 pointer-events-auto"
+                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded transition-colors border border-slate-300 pointer-events-auto"
                         title="Clear and reset to relative"
                       >
                         Reset
                       </button>
                     )}
                   </div>
-                  <div className="text-[9px] font-mono opacity-85 text-slate-500">
+
+                  <div className="text-[10px] font-mono opacity-85 text-slate-500">
                     Active endpoint path: <span className="text-indigo-600 font-semibold">{getApiUrl("/api/send-email")}</span>
                   </div>
+
+                  {apiTestStatus.status !== "idle" && (
+                    <div className={`p-3 rounded-lg border text-xs flex items-start gap-2 animate-in slide-in-from-top-1 duration-150 ${
+                      apiTestStatus.status === "success" 
+                        ? "bg-emerald-50 border-emerald-250 text-emerald-850" 
+                        : apiTestStatus.status === "error" 
+                        ? "bg-rose-55 border-rose-200 text-rose-850" 
+                        : "bg-blue-50 border-blue-200 text-blue-800"
+                    }`}>
+                      <span className="font-bold">
+                        {apiTestStatus.status === "success" ? "✓ SUCCESS:" : apiTestStatus.status === "error" ? "⚠ CONNECTION FAILURE:" : "⚡ TESTING:"}
+                      </span>
+                      <div className="flex-1 space-y-1">
+                        <p className="font-medium">{apiTestStatus.message || "Diagnostic test running..."}</p>
+                        {apiTestStatus.status === "error" && (
+                          <div className="text-[10px] leading-relaxed font-sans mt-1.5 border-t border-rose-200/50 pt-1.5 space-y-1">
+                            <p className="font-bold text-rose-900">How to fix "Failed to fetch":</p>
+                            <ol className="list-decimal pl-4 space-y-0.5 text-rose-800">
+                              <li>Verify that your Backend API Endpoint starts with <code className="bg-rose-100 px-1 rounded font-mono font-bold text-rose-950">https://</code> and has no typos.</li>
+                              <li>If you are using the AI Studio Preview URL (<code className="font-mono">run.app</code>), the platform requires you to be logged in to AI Studio in the same browser, or blocks cross-origin fetch if accessed directly.</li>
+                              <li><strong>Recommended Production Fix:</strong> Click the "Deploy" or "Export" tab in AI Studio to run the backend in your own Google Cloud console project. Enter your public custom Cloud Run service URL here, which is fully open to direct CORS request headers.</li>
+                            </ol>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

@@ -22,6 +22,11 @@ async function startServer() {
     next();
   });
 
+  // Health check endpoint for connection tests
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   // API to securely dispatch actual operational notification emails via standard SMTP parameters or structured handover format
   const handleSendEmail = async (req: express.Request, res: express.Response) => {
     console.log("Incoming email dispatch request body:", JSON.stringify(req.body));
