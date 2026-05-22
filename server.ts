@@ -81,10 +81,10 @@ async function startServer() {
         let dueColor = "#475569";
         if (dueDateStr) {
           const due = new Date(dueDateStr);
-          const today = new Date();
+          const baseDate = hd.date ? new Date(hd.date) : new Date("2026-05-20");
           due.setHours(0,0,0,0);
-          today.setHours(0,0,0,0);
-          const diffTime = due.getTime() - today.getTime();
+          baseDate.setHours(0,0,0,0);
+          const diffTime = due.getTime() - baseDate.getTime();
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
           if (diffDays === 0) {
             dueLabel = `${dueDateStr} (Due Today)`;

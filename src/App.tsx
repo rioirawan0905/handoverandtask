@@ -329,6 +329,130 @@ export const PALETTE_THEMES = [
     inputBg: "bg-[#1F2937] text-slate-100 border-slate-700 focus:ring-indigo-500",
     thBg: "bg-[#1E293B]/60 text-slate-300 border-slate-800 hover:bg-slate-800",
     analyticsDarkAccent: "#38bdf8",
+  },
+  {
+    id: "sunset-terracotta",
+    name: "Sunset Terracotta",
+    description: "Warm earthy clay tones with amber and sun-kissed accents",
+    isDark: false,
+    bodyBg: "bg-[#FFFDF9]/60",
+    bodyText: "text-amber-950",
+    cardBg: "bg-white",
+    cardBorder: "border-amber-100",
+    cardTitleText: "text-amber-900",
+    cardSubText: "text-stone-500",
+    mutedBg: "bg-amber-50/40",
+    primaryBtn: "bg-amber-600 hover:bg-amber-700 text-white focus:ring-amber-305",
+    accentText: "text-amber-700",
+    accentBg: "bg-amber-50/50",
+    accentBorder: "border-amber-100",
+    activeRibbonBg: "bg-amber-900 border-amber-950 text-white",
+    activeRibbonText: "text-white",
+    activeRibbonMutedText: "text-amber-250",
+    activeRibbonSubText: "text-amber-300",
+    activeRibbonMiddle: "bg-amber-950/40 border-amber-800",
+    activeRibbonBubble: "bg-amber-950/60 text-amber-300 border-amber-800/80",
+    successAlertBg: "bg-emerald-50 text-emerald-800 border-emerald-100",
+    infoAlertBg: "bg-amber-50 text-amber-850 border-amber-100",
+    warningAlertBg: "bg-orange-50 text-orange-850 border-orange-100",
+    metaText: "text-stone-400",
+    divideColor: "divide-amber-100",
+    inputBg: "bg-white text-stone-900 border-amber-300/70",
+    thBg: "bg-amber-50/30 text-stone-600 border-amber-100 hover:bg-amber-100/50",
+    analyticsDarkAccent: "#d97706",
+  },
+  {
+    id: "royal-amethyst",
+    name: "Royal Amethyst",
+    description: "Majestic deep purple and warm lavender hues for an elegant workspace",
+    isDark: false,
+    bodyBg: "bg-purple-50/30",
+    bodyText: "text-[#3B0764]",
+    cardBg: "bg-white",
+    cardBorder: "border-purple-100",
+    cardTitleText: "text-purple-950",
+    cardSubText: "text-purple-550",
+    mutedBg: "bg-purple-50/60",
+    primaryBtn: "bg-purple-700 hover:bg-purple-855 text-white focus:ring-purple-300",
+    accentText: "text-purple-700",
+    accentBg: "bg-purple-50/50",
+    accentBorder: "border-purple-100",
+    activeRibbonBg: "bg-purple-900 border-purple-950 text-white",
+    activeRibbonText: "text-white",
+    activeRibbonMutedText: "text-purple-200",
+    activeRibbonSubText: "text-purple-300",
+    activeRibbonMiddle: "bg-purple-950/40 border-purple-850",
+    activeRibbonBubble: "bg-purple-950/60 text-purple-300 border-purple-850/80",
+    successAlertBg: "bg-emerald-50 text-emerald-850 border-emerald-150",
+    infoAlertBg: "bg-purple-50 text-purple-850 border-purple-150",
+    warningAlertBg: "bg-amber-50 text-amber-800 border-amber-150",
+    metaText: "text-slate-400",
+    divideColor: "divide-purple-100",
+    inputBg: "bg-white text-slate-850 border-purple-200",
+    thBg: "bg-purple-50/30 text-slate-600 border-purple-100 hover:bg-purple-100/50",
+    analyticsDarkAccent: "#7c3aed",
+  },
+  {
+    id: "cyberpunk-neon",
+    name: "Cyberpunk Neon",
+    description: "Ultra-contrast cybernetic theme with neon magenta and sharp yellow-green accents",
+    isDark: true,
+    bodyBg: "bg-[#030712]",
+    bodyText: "text-slate-100",
+    cardBg: "bg-[#111827]",
+    cardBorder: "border-pink-900/40",
+    cardTitleText: "text-[#FDF2F8]",
+    cardSubText: "text-slate-400",
+    mutedBg: "bg-[#1F2937]/80",
+    primaryBtn: "bg-pink-600 hover:bg-pink-700 text-white focus:ring-pink-400",
+    accentText: "text-pink-400",
+    accentBg: "bg-pink-950/40",
+    accentBorder: "border-pink-900/50",
+    activeRibbonBg: "bg-[#111827] border border-pink-500/30 text-[#FFF1F2]",
+    activeRibbonText: "text-pink-100",
+    activeRibbonMutedText: "text-slate-400",
+    activeRibbonSubText: "text-pink-400",
+    activeRibbonMiddle: "bg-[#030712] border-pink-900/30",
+    activeRibbonBubble: "bg-slate-950 text-pink-400 border-pink-950",
+    successAlertBg: "bg-emerald-950/40 text-emerald-300 border-emerald-950/50",
+    infoAlertBg: "bg-slate-900/90 text-pink-300 border-pink-950/40",
+    warningAlertBg: "bg-amber-955/40 text-amber-300 border-amber-955/40",
+    metaText: "text-slate-500",
+    divideColor: "divide-pink-950/40",
+    inputBg: "bg-[#1F2937] text-white border-pink-950/80 focus:ring-pink-500",
+    thBg: "bg-[#111827]/80 text-[#FFF1F2] border-[#1F2937] hover:bg-[#1F2937]",
+    analyticsDarkAccent: "#db2777",
+  },
+  {
+    id: "rose-quartz",
+    name: "Crimson Blush",
+    description: "Elegant soft rose aura with deep crimson and burgundy focus",
+    isDark: false,
+    bodyBg: "bg-[#FFF5F5]",
+    bodyText: "text-[#5C2C2C]",
+    cardBg: "bg-white",
+    cardBorder: "border-[#FEE2E2]",
+    cardTitleText: "text-[#7F1D1D]",
+    cardSubText: "text-[#991B1B]/70",
+    mutedBg: "bg-[#FEF2F2]",
+    primaryBtn: "bg-[#DC2626] hover:bg-[#B91C1C] text-white focus:ring-red-400",
+    accentText: "text-[#DC2626]",
+    accentBg: "bg-[#FEF2F2]/60",
+    accentBorder: "border-[#FCA5A5]/80",
+    activeRibbonBg: "bg-[#7F1D1D] border-[#991B1B] text-[#FFF5F5]",
+    activeRibbonText: "text-white",
+    activeRibbonMutedText: "text-[#FCA5A5]",
+    activeRibbonSubText: "text-rose-200",
+    activeRibbonMiddle: "bg-[#990F0F]/45 border-[#B91C1C]",
+    activeRibbonBubble: "bg-rose-950/60 text-[#FCA5A5] border-[#B91C1C]/80",
+    successAlertBg: "bg-emerald-50 text-emerald-850 border-emerald-150",
+    infoAlertBg: "bg-rose-50 text-rose-850 border-rose-150",
+    warningAlertBg: "bg-amber-50 text-amber-800 border-amber-150",
+    metaText: "text-rose-450",
+    divideColor: "divide-rose-100",
+    inputBg: "bg-white text-rose-900 border-rose-250",
+    thBg: "bg-[#FFF5F5] text-[#7F1D1D] border-rose-100 hover:bg-[#FEE2E2]",
+    analyticsDarkAccent: "#dc2626",
   }
 ];
 
@@ -336,6 +460,8 @@ export default function App() {
   const [selectedThemeId, setSelectedThemeId] = useState<string>(() => {
     return localStorage.getItem("handover_dashboard_theme") || "steel-slate";
   });
+
+  const [activeSettingsTab, setActiveSettingsTab] = useState<string>("input");
 
   const activeTheme = PALETTE_THEMES.find(t => t.id === selectedThemeId) || PALETTE_THEMES[0];
 
@@ -2117,10 +2243,10 @@ export default function App() {
                 let dueLabel = "No Due Date";
                 if (dueDateStr) {
                   const due = new Date(dueDateStr);
-                  const today = new Date();
+                  const referenceDateChange = newHistoryItem.date ? new Date(newHistoryItem.date) : CURRENT_DATE_VAL;
                   due.setHours(0,0,0,0);
-                  today.setHours(0,0,0,0);
-                  const diffTime = due.getTime() - today.getTime();
+                  referenceDateChange.setHours(0,0,0,0);
+                  const diffTime = due.getTime() - referenceDateChange.getTime();
                   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                   if (diffDays === 0) {
                     dueLabel = `Due: ${dueDateStr} (Due Today)`;
@@ -3050,7 +3176,7 @@ export default function App() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-display font-bold tracking-tight text-slate-900">
-                  Team Handover & Task Backlog
+                  P5D Handover Platform
                 </h1>
                 <span className="px-2 py-0.5 text-xs font-mono font-semibold rounded-full bg-emerald-100 text-emerald-800 animate-pulse">
                   Live Cloud Sync
@@ -3254,9 +3380,37 @@ export default function App() {
               </button>
             </div>
 
-            <div className={`grid grid-cols-1 lg:grid-cols-12 gap-6 pl-2 ${activeTheme.isDark ? 'text-slate-250' : 'text-slate-800'}`}>
-              {/* Left Column: Personnel Roster Management */}
-              <div className={`lg:col-span-4 space-y-4 border-b lg:border-b-0 pb-6 lg:pb-0 lg:border-r ${activeTheme.isDark ? 'border-slate-800' : 'border-slate-200'} lg:pr-6 text-left`}>
+            {/* Elegant Tab Switcher Strip */}
+            <div className="flex flex-col sm:flex-row border-b border-slate-200/60 dark:border-slate-800 pb-1.5 gap-2 select-none">
+              <button
+                type="button"
+                onClick={() => setActiveSettingsTab("input")}
+                className={`px-4.5 py-2 rounded-lg text-xs font-bold font-sans transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  activeSettingsTab === "input"
+                    ? "bg-indigo-650 text-white shadow-xs"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-350 dark:hover:bg-slate-750"
+                }`}
+              >
+                📥 Input & Customization <span className="opacity-70 text-[10px] font-normal font-sans">(Roster, Tema, Notifikasi)</span>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setActiveSettingsTab("system")}
+                className={`px-4.5 py-2 rounded-lg text-xs font-bold font-sans transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  activeSettingsTab === "system"
+                    ? "bg-indigo-650 text-white shadow-xs"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-350 dark:hover:bg-slate-750"
+                }`}
+              >
+                🎛️ System Settings & Integrations <span className="opacity-70 text-[10px] font-normal font-sans">(Firebase, SMTP, Sandbox)</span>
+              </button>
+            </div>
+
+            {activeSettingsTab === "input" && (
+              <div className={`grid grid-cols-1 lg:grid-cols-12 gap-6 pl-2 ${activeTheme.isDark ? 'text-slate-250' : 'text-slate-800'}`}>
+                {/* Left Column: Personnel Roster Management */}
+                <div className={`lg:col-span-6 space-y-4 border-b lg:border-b-0 pb-6 lg:pb-0 lg:border-r ${activeTheme.isDark ? 'border-slate-800' : 'border-slate-200'} lg:pr-6 text-left`}>
                 <div>
                   <h3 className={`text-xs uppercase tracking-wider font-extrabold ${activeTheme.cardTitleText} font-mono flex items-center gap-1`}>
                     <span>👥</span> Add / Manage Personnel
@@ -3354,8 +3508,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Middle Column: Visual Theme Selector */}
-              <div className={`lg:col-span-4 space-y-4 border-b lg:border-b-0 pb-6 lg:pb-0 lg:border-r ${activeTheme.isDark ? 'border-slate-800' : 'border-slate-200'} lg:pr-6 text-left`}>
+              {/* Right Column: Visual Theme Selector */}
+              <div className="lg:col-span-6 space-y-4 text-left">
                 <div>
                   <h3 className={`text-xs uppercase tracking-wider font-extrabold ${activeTheme.cardTitleText} font-mono flex items-center gap-1`}>
                     <span>🎨</span> Paint & Styling Themes
@@ -3407,19 +3561,23 @@ export default function App() {
                   </div>
                 </div>
               </div>
+            </div>
+            )}
 
-              {/* Right Column: Database Configuration */}
-              <div className="lg:col-span-4 space-y-4 text-left">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className={`text-xs uppercase tracking-wider font-extrabold ${activeTheme.cardTitleText} font-mono flex items-center gap-1`}>
-                      <span>🔌</span> Firebase Database Connection
-                    </h3>
-                    <p className={`text-[11px] ${activeTheme.cardSubText} leading-normal mt-1`}>
-                      Link your workspace to a Google Cloud Firestore instance. All rotation checks, checklists, tasks, and historical entries sync in real-time.
-                    </p>
+            {activeSettingsTab === "system" && (
+              <div className={`grid grid-cols-1 lg:grid-cols-12 gap-6 pl-2 ${activeTheme.isDark ? 'text-[#e2e8f0]' : 'text-slate-800'}`}>
+                {/* Left Column: Database Configuration */}
+                <div className="lg:col-span-6 space-y-4 text-left border-b lg:border-b-0 pb-6 lg:pb-0 lg:border-r border-slate-200 dark:border-slate-800 lg:pr-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className={`text-xs uppercase tracking-wider font-extrabold ${activeTheme.cardTitleText} font-mono flex items-center gap-1`}>
+                        <span>🔌</span> Firebase Database Connection
+                      </h3>
+                      <p className={`text-[11px] ${activeTheme.cardSubText} leading-normal mt-1`}>
+                        Link your workspace to a Google Cloud Firestore instance. All rotation checks, checklists, tasks, and historical entries sync in real-time.
+                      </p>
+                    </div>
                   </div>
-                </div>
 
                 {isEnvConfigured ? (
                   <div className={`${activeTheme.isDark ? 'bg-slate-900 border-slate-800' : 'bg-indigo-50/70 border border-indigo-200'} rounded-lg p-5 space-y-4 shadow-2xs`}>
@@ -3585,8 +3743,10 @@ service cloud.firestore {
                   </div>
                 )}
 
-                {/* Custom API Base URL Configuration */}
-                <div className={`mt-4 pt-4 border-t ${activeTheme.cardBorder} space-y-4`}>
+                </div>
+
+                {/* Right Column: SMTP & EmailJS Notification Services */}
+                <div className="lg:col-span-6 space-y-4 text-left">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs">✉️</span>
                     <span className={`text-[11px] font-bold uppercase tracking-wider ${activeTheme.cardTitleText} font-mono`}>
@@ -3828,68 +3988,70 @@ service cloud.firestore {
                   )}
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Divider line separating main roster/themes and granular notifications prefs */}
-            <div className={`border-t my-6 ${activeTheme.cardBorder}`} />
+            {activeSettingsTab === "input" && (
+              <>
+                {/* Divider line separating main roster/themes and granular notifications prefs */}
+                <div className={`border-t my-6 ${activeTheme.cardBorder}`} />
 
-            <div className="pl-2 space-y-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b pb-3 border-slate-200/65">
-                <div>
-                  <h3 className={`text-sm uppercase tracking-wider font-extrabold ${activeTheme.cardTitleText} flex items-center gap-2 font-display`}>
-                    <span>🔔</span> Operational Notification Dispatch Controls
-                  </h3>
-                  <p className={`text-[11px] ${activeTheme.cardSubText} leading-relaxed mt-0.5 max-w-2xl text-left`}>
-                    Configure rules to selectively relay drilling events over multiple communication protocols. Test custom setups by triggering live overdue evaluations below.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // Manual Scan for overdue alerts
-                      const overdueTasks = dbState.tasks.filter(t => !t.completed && calculateDaysRemaining(t.dueDate).isOverdue);
-                      if (overdueTasks.length === 0) {
-                        addNotification("Scan complete: No overdue tasks currently found in active space.", "success");
-                        return;
-                      }
-                      overdueTasks.forEach(task => {
-                        dispatchNotification({
-                          event: "overdueAlert",
-                          message: `ALERT ESC-11: Checklist item "${task.description}" assigned to operator ${task.ownerName} is past due date (${task.dueDate})!`,
-                          type: "warning",
-                          details: {
-                            taskName: task.description,
-                            assignee: task.ownerName,
-                            dueDate: task.dueDate,
-                            spaceName: workspaces.find(w => w.id === currentSelectedWorkspaceId)?.name || "Primary Shift Space"
+                <div className="pl-2 space-y-6">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b pb-3 border-slate-200/65">
+                    <div>
+                      <h3 className={`text-sm uppercase tracking-wider font-extrabold ${activeTheme.cardTitleText} flex items-center gap-2 font-display`}>
+                        <span>🔔</span> Operational Notification Dispatch Controls
+                      </h3>
+                      <p className={`text-[11px] ${activeTheme.cardSubText} leading-relaxed mt-0.5 max-w-2xl text-left`}>
+                        Configure rules to selectively relay drilling events over multiple communication protocols. Test custom setups by triggering live overdue evaluations below.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Manual Scan for overdue alerts
+                          const overdueTasks = dbState.tasks.filter(t => !t.completed && calculateDaysRemaining(t.dueDate).isOverdue);
+                          if (overdueTasks.length === 0) {
+                            addNotification("Scan complete: No overdue tasks currently found in active space.", "success");
+                            return;
                           }
-                        });
-                      });
-                      addNotification(`Live scanning compiled! Triggered ${overdueTasks.length} overdue alerts across active channels. Check outbox logs below!`, "success");
-                    }}
-                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-bold transition-colors shadow-2xs cursor-pointer inline-flex items-center gap-1.5"
-                  >
-                    🚨 Scan & Dispatch Overdue Alerts
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSimulatedEmails([]);
-                      setSimulatedPushes([]);
-                      addNotification("Simulation trail logs and outbox records cleared.", "info");
-                    }}
-                    className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 border border-slate-350 hover:bg-slate-50/10 rounded cursor-pointer transition-colors"
-                  >
-                    ♻️ Reset Sim Outboxes
-                  </button>
-                </div>
-              </div>
+                          overdueTasks.forEach(task => {
+                            dispatchNotification({
+                              event: "overdueAlert",
+                              message: `ALERT ESC-11: Checklist item "${task.description}" assigned to operator ${task.ownerName} is past due date (${task.dueDate})!`,
+                              type: "warning",
+                              details: {
+                                taskName: task.description,
+                                assignee: task.ownerName,
+                                dueDate: task.dueDate,
+                                spaceName: workspaces.find(w => w.id === currentSelectedWorkspaceId)?.name || "Primary Shift Space"
+                              }
+                            });
+                          });
+                          addNotification(`Live scanning compiled! Triggered ${overdueTasks.length} overdue alerts across active channels. Check outbox logs below!`, "success");
+                        }}
+                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-bold transition-colors shadow-2xs cursor-pointer inline-flex items-center gap-1.5"
+                      >
+                        🚨 Scan & Dispatch Overdue Alerts
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSimulatedEmails([]);
+                          setSimulatedPushes([]);
+                          addNotification("Simulation trail logs and outbox records cleared.", "info");
+                        }}
+                        className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 border border-slate-350 hover:bg-slate-50/10 rounded cursor-pointer transition-colors"
+                      >
+                        ♻️ Reset Sim Outboxes
+                      </button>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
-                {/* Rule Matrix & Toggles */}
-                <div className="lg:col-span-6 space-y-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    
+                    {/* Rule Matrix & Toggles */}
+                    <div className="lg:col-span-7 space-y-4">
                   <div className={`overflow-hidden border ${activeTheme.cardBorder} rounded-xl shadow-3xs`}>
                     <table className="w-full text-left font-sans text-xs border-collapse">
                       <thead>
@@ -4022,8 +4184,11 @@ service cloud.firestore {
                       </tbody>
                     </table>
                   </div>
+                </div>
 
-                  <div className={`p-4 border ${activeTheme.cardBorder} rounded-xl ${activeTheme.mutedBg} space-y-3 text-xs text-left`}>
+                {/* Alert Destination Email Endpoint */}
+                <div className="lg:col-span-5">
+                  <div className={`p-4 border ${activeTheme.cardBorder} rounded-xl ${activeTheme.mutedBg} space-y-3 text-xs text-left h-full flex flex-col justify-between`}>
                     <label className={`text-[10px] uppercase font-bold tracking-wider ${activeTheme.cardSubText} font-mono block text-left`}>
                       Alert Destination Email Endpoint
                     </label>
@@ -4076,9 +4241,15 @@ service cloud.firestore {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+            </>
+          )}
 
-                {/* Simulated Delivery Station Column */}
-                <div className="lg:col-span-6 flex flex-col h-full min-h-[480px] border border-slate-200/90 rounded-xl overflow-hidden shadow-3xs bg-slate-900/5">
+          {activeSettingsTab === "system" && (
+            <div className={`mt-6 pt-6 border-t ${activeTheme.cardBorder} pl-2`}>
+              {/* Simulated Delivery Station Column */}
+              <div className="flex flex-col h-full min-h-[480px] border border-slate-200/90 rounded-xl overflow-hidden shadow-3xs bg-slate-900/5">
                   <div className="bg-slate-900/5 pb-0 border-b border-slate-200">
                     <div className="flex items-center justify-between px-4 pt-3 pb-1">
                       <span className="text-xs font-extrabold uppercase tracking-widest text-[#475569] font-mono text-left block">
@@ -4293,7 +4464,7 @@ service cloud.firestore {
                 </div>
 
               </div>
-            </div>
+            )}
           </div>
         )}
 
