@@ -447,6 +447,27 @@ export default function App() {
   const [newWorkspaceInputName, setNewWorkspaceInputName] = useState("");
   const [workspaceCreateError, setWorkspaceCreateError] = useState("");
 
+  // Carry Over Tasks modal state
+  const [showCarryOverModal, setShowCarryOverModal] = useState(false);
+  const [selectedCarryOverTaskIds, setSelectedCarryOverTaskIds] = useState<string[]>([]);
+
+  // Authorized Sign-Off confirmation modal state
+  const [showSignoffConfirmationModal, setShowSignoffConfirmationModal] = useState(false);
+  const [signoffAgreement, setSignoffAgreement] = useState(false);
+  const [signoffEmailOverride, setSignoffEmailOverride] = useState("");
+  const [signoffResult, setSignoffResult] = useState<{
+    status: "idle" | "submitting" | "success" | "error";
+    message: string;
+    sentTo: string;
+  }>({ status: "idle", message: "", sentTo: "" });
+
+  // Previous Read Notifications state hydration
+  const [showPreviousNotificationsPopup, setShowPreviousNotificationsPopup] = useState(false);
+  const [readNotifications, setReadNotifications] = useState<NotificationItem[]>(() => {
+    const saved = localStorage.getItem("handover_read_notifications");
+    return saved ? JSON.parse(saved) : [];
+  });
+
   // Delete confirmation modal state
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     isOpen: boolean;
@@ -691,7 +712,7 @@ export default function App() {
       overdueAlert: { inApp: true, email: true, push: true },
       handoverSignoff: { inApp: true, email: false, push: true },
       rosterUpdate: { inApp: true, email: true, push: false },
-      userEmail: "yesaya.rio@gmail.com"
+      userEmail: ""
     };
   });
 
@@ -1026,9 +1047,15 @@ export default function App() {
         `;
       }
 
+      const targetEmails = notificationSettings.userEmail.trim();
+      if (!targetEmails) {
+        console.log("Skipping physical SMTP dispatch: No recipient emails are configured inside Settings.");
+        return;
+      }
+
       const newEmail: SimulatedEmail = {
         id: `email-${Date.now()}-${Math.random()}`,
-        to: notificationSettings.userEmail || "yesaya.rio@gmail.com",
+        to: targetEmails,
         subject: emailSubject,
         body: message,
         type: event,
@@ -1970,7 +1997,151 @@ export default function App() {
     }));
   };
 
-  // Handle Complete Handover Sign-off
+  // Handle Complete Handover Sign-off with popup verification dialog, agreement checks, and email override controls
+  const handleConfirmSignOffSubmit = async () => {
+    setSignoffResult({ status: "submitting", message: "Processing handover rotation and logs archiving...", sentTo: signoffEmailOverride });
+    
+    // Auto-update email override inside local settings so they don't lose it!
+    setNotificationSettings(prev => ({ ...prev, userEmail: signoffEmailOverride }));
+
+    // Capture precise, non-stale copies of current active tasks and backlog
+    const currentTasks = [...dbState.tasks];
+    const currentBacklog = [...dbState.backlog];
+
+    const newHistoryItem: HandoverHistoryItem = {
+      id: `history-${Date.now()}`,
+      date: new Date().toISOString(),
+      outgoingLead: dbState.outgoingLead,
+      incomingLead: dbState.incomingLead,
+      logText: logText,
+      tasksCount: currentTasks.length,
+      backlogCount: currentBacklog.length,
+      signedOffBy: dbState.outgoingLead,
+      tasks: currentTasks,
+      backlog: currentBacklog
+    };
+
+    // Advanced rotation logic: 
+    updateWorkspaceState((prev) => {
+      const uncompletedTasks = prev.tasks.filter(t => !t.completed);
+      return {
+        ...prev,
+        outgoingLead: prev.incomingLead, // Rotation!
+        incomingLead: "", // Blank wait for input
+        tasks: uncompletedTasks, // Keep uncompleted
+        history: [newHistoryItem, ...prev.history],
+        signoffChecklist: {
+          blockersReviewed: false,
+          systemsNormal: false,
+          credsTransferred: false,
+        },
+        latestLog: ""
+      };
+    });
+
+    const workspaceName = workspaces.find(w => w.id === currentSelectedWorkspaceId)?.name || currentSelectedWorkspaceId;
+
+    // Trigger physical SMTP dispatch directly to parse standard SMTP results
+    if (signoffEmailOverride.trim()) {
+      try {
+        const response = await fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: signoffEmailOverride,
+            subject: `[HANDOVER SIGN-OFF] Shift transition on "${workspaceName}" by ${newHistoryItem.signedOffBy}`,
+            text: `Shift rotation signed off successfully by ${newHistoryItem.signedOffBy} for space "${workspaceName}". Total completed tasks: ${currentTasks.filter(t=>t.completed).length}.`,
+            html: `
+              <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #1e293b;">
+                <h2 style="color: #4f46e5; margin-top: 0;">📝 Shift Handover Signed Off Successfully</h2>
+                <p style="font-size: 14px; line-height: 1.6; color: #475569;">
+                  A transition rotation package has been certified and locked for space <strong>${workspaceName}</strong>.
+                </p>
+                <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #f1f5f9;">
+                  <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 6px 0; color: #64748b;"><strong>Outgoing Lead:</strong></td>
+                      <td style="padding: 6px 0; color: #0f172a; text-align: right;">${newHistoryItem.outgoingLead}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 6px 0; color: #64748b;"><strong>Incoming Counterpart:</strong></td>
+                      <td style="padding: 6px 0; color: #0f172a; text-align: right;">${newHistoryItem.incomingLead}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 6px 0; color: #64748b;"><strong>Timestamp:</strong></td>
+                      <td style="padding: 6px 0; color: #0f172a; text-align: right;">${new Date(newHistoryItem.date).toUTCString()}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 6px 0; color: #64748b;"><strong>Signed Off By:</strong></td>
+                      <td style="padding: 6px 0; color: #4f46e5; font-weight: bold; text-align: right;">${newHistoryItem.signedOffBy}</td>
+                    </tr>
+                  </table>
+                  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 12px 0;" />
+                  <p style="font-size: 12px; color: #475569; margin: 0; font-style: italic;">
+                    <strong>Transitional Briefing Notes:</strong> "${newHistoryItem.logText}"
+                  </p>
+                </div>
+                <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 24px;">
+                  This is an automated real-world secure transactional alert sent using Express Nodemailer.
+                </p>
+              </div>
+            `
+          })
+        });
+        const data = await response.json();
+        if (data.success) {
+          setSignoffResult({
+            status: "success",
+            message: `Handover transaction successfully completed and database archived! Real-time email relay dispatched via secure SMTP. (Alert verification ID: ${data.messageId || "SMTP-OK"})`,
+            sentTo: signoffEmailOverride
+          });
+          addNotification(`📧 Notification sent successfully: ${signoffEmailOverride}`, "success");
+        } else if (data.reason === "SMTP_NOT_CONFIGURED") {
+          setSignoffResult({
+            status: "success",
+            message: `Handover rotation completed successfully. (Real SMTP credentials are not configured in your environment; outbox saved strictly into the Simulation Sandbox panel).`,
+            sentTo: signoffEmailOverride
+          });
+          addNotification(`📧 Handover notice saved to Simulation Box!`, "info");
+        } else {
+          setSignoffResult({
+            status: "error",
+            message: `Handover saved & archived, but real SMTP service reported an error: ${data.message || "Endpoint block"}.`,
+            sentTo: signoffEmailOverride
+          });
+          addNotification(`⚠️ SMTP block: ${data.message}`, "warning");
+        }
+      } catch (err: any) {
+        setSignoffResult({
+          status: "error",
+          message: `Handover database entry saved, but request failed to connect to email endpoint API server: ${err.message}`,
+          sentTo: signoffEmailOverride
+        });
+        addNotification(`⚠️ SMTP response timeout`, "warning");
+      }
+    } else {
+      setSignoffResult({
+        status: "success",
+        message: `Handover rotation completed and saved into historical archive. (No recipient emails were selected to dispatch notifications)`,
+        sentTo: "None"
+      });
+    }
+
+    // Trigger normal in-app / log dispatches
+    dispatchNotification({
+      event: "handoverSignoff",
+      message: `Handover signed off by ${newHistoryItem.signedOffBy}. Shift rota successfully archived for space "${workspaceName}".`,
+      type: "success",
+      details: {
+        signeeName: newHistoryItem.signedOffBy,
+        spaceName: workspaceName,
+        handoverRecord: newHistoryItem
+      }
+    });
+
+    setLogText("");
+  };
+
   const handleCompleteSignOff = () => {
     const isLeadOut = !!dbState.outgoingLead?.trim();
     const isLeadIn = !!dbState.incomingLead?.trim();
@@ -1993,59 +2164,11 @@ export default function App() {
       return;
     }
 
-    // Capture precise, non-stale copies of current active tasks and backlog
-    const currentTasks = [...dbState.tasks];
-    const currentBacklog = [...dbState.backlog];
-
-    const newHistoryItem: HandoverHistoryItem = {
-      id: `history-${Date.now()}`,
-      date: new Date().toISOString(),
-      outgoingLead: dbState.outgoingLead,
-      incomingLead: dbState.incomingLead,
-      logText: logText,
-      tasksCount: currentTasks.length,
-      backlogCount: currentBacklog.length,
-      signedOffBy: dbState.outgoingLead,
-      tasks: currentTasks,
-      backlog: currentBacklog
-    };
-
-    // Advanced rotation logic: 
-    // Outgoing Lead becomes the previous incoming, 
-    // Completed tasks are archived, unresolved active tasks are retained
-    updateWorkspaceState((prev) => {
-      const uncompletedTasks = prev.tasks.filter(t => !t.completed);
-      
-      return {
-        ...prev,
-        outgoingLead: prev.incomingLead, // Rotation!
-        incomingLead: "", // Blank wait for input
-        tasks: uncompletedTasks, // Keep uncompleted
-        history: [newHistoryItem, ...prev.history],
-        signoffChecklist: {
-          blockersReviewed: false,
-          systemsNormal: false,
-          credsTransferred: false,
-        },
-        latestLog: ""
-      };
-    });
-
-    // Dispatch the single unified complete handover transaction notification/email immediately
-    const workspaceName = workspaces.find(w => w.id === currentSelectedWorkspaceId)?.name || currentSelectedWorkspaceId;
-    dispatchNotification({
-      event: "handoverSignoff",
-      message: `Handover signed off by ${newHistoryItem.signedOffBy}. Shift rota successfully archived for space "${workspaceName}".`,
-      type: "success",
-      details: {
-        signeeName: newHistoryItem.signedOffBy,
-        spaceName: workspaceName,
-        handoverRecord: newHistoryItem
-      }
-    });
-
-    setLogText("");
-    alert(`Handover signed off successfully! Rotation updated: ${dbState.incomingLead} is now the Outgoing Lead.`);
+    // Instead of completing instantly, open the interactive confirmation modal
+    setSignoffEmailOverride(notificationSettings.userEmail);
+    setSignoffAgreement(false);
+    setSignoffResult({ status: "idle", message: "", sentTo: "" });
+    setShowSignoffConfirmationModal(true);
   };
 
   // Utility to obtain styled initials backdrops
@@ -2224,6 +2347,413 @@ export default function App() {
           </div>
         </div>
       )}
+      {deleteConfirmation?.isOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 transition-all duration-200">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-200 text-left">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-rose-50 text-rose-600 rounded-lg">
+                <AlertTriangle className="w-6 h-6 shrink-0" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-bold text-slate-900 font-display text-base">
+                  Delete {deleteConfirmation.type === "workspace" ? "Handover Space" : 
+                          deleteConfirmation.type === "task" ? "Active Task" : 
+                          deleteConfirmation.type === "backlog" ? "Backlog Task" : 
+                          deleteConfirmation.type === "history" ? "Handover Archive" : "Roster Entry"}?
+                </h3>
+                <p className="text-xs text-slate-500 font-mono">
+                  Target: <span className="text-slate-800 font-bold">{deleteConfirmation.name}</span>
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-100">
+              {deleteConfirmation.type === "workspace" && (
+                "Warning: This will permanently delete the selected handover workspace and all associated tasks, checklist states, roster allocations, and chronological logs. This process represents an irreversible purge, removing all traces from Local Storage and connected Live Firebase instances."
+              )}
+              {deleteConfirmation.type === "task" && (
+                "Are you sure you want to remove this active tracking task? Other team members will lose visibility of this item."
+              )}
+              {deleteConfirmation.type === "backlog" && (
+                "Are you sure you want to remove this item from the backlog queue?"
+              )}
+              {deleteConfirmation.type === "person" && (
+                "This will remove the selected operator from the global personnel roster references."
+              )}
+              {deleteConfirmation.type === "history" && (
+                "Are you absolutely sure you want to delete this completed shift handover record from the historical archives? This represents an irreversible deletion: the details, tasks active at sign-off, backlog snapshot, and chronological shift logs will be permanently erased."
+              )}
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmation(null)}
+                className="px-3.5 py-1.5 border border-slate-200 hover:bg-slate-50 rounded text-slate-600 text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded text-xs shadow-xs transition-colors cursor-pointer"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 1. Carry Over Tasks Historic Modal */}
+      {showCarryOverModal && (
+        <div className="fixed inset-0 bg-slate-900/55 backdrop-blur-xs flex items-center justify-center z-50 p-4 transition-all duration-200">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden p-5 flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150 text-slate-850">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+              <h3 className="font-bold text-slate-900 font-display flex items-center gap-2 text-sm uppercase tracking-tight">
+                <Copy className="w-4 h-4 text-amber-500" />
+                Carry Over Past Rotation Tasks
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowCarryOverModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-xs font-mono p-1 rounded-full hover:bg-slate-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 leading-normal mb-3 text-left">
+              Select and import pending or key operational safety tasks from historically complete handover rotations into the current active cycle. This fetches checklists across all historical registered records.
+            </p>
+
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1 border border-slate-100 rounded-lg p-3 bg-slate-50/50">
+              {(() => {
+                const historicTasks = dbState.history.flatMap(record => {
+                  const items = record.tasks || [];
+                  return items.map(item => ({
+                    ...item,
+                    recordDate: record.date,
+                    recordOut: record.outgoingLead,
+                    recordIn: record.incomingLead
+                  }));
+                });
+
+                if (historicTasks.length === 0) {
+                  return (
+                    <div className="p-8 text-center text-xs text-slate-450 italic">
+                      No past tasks found in the history logs to carry over.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2.5">
+                    {historicTasks.map((t) => {
+                      const isSelected = selectedCarryOverTaskIds.includes(t.id);
+                      const formattedDate = new Date(t.recordDate).toLocaleDateString([], { month: "short", day: "numeric" });
+                      return (
+                        <div 
+                          key={t.id}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedCarryOverTaskIds(prev => prev.filter(id => id !== t.id));
+                            } else {
+                              setSelectedCarryOverTaskIds(prev => [...prev, t.id]);
+                            }
+                          }}
+                          className={`p-3 rounded-lg border text-left cursor-pointer transition-all flex items-start gap-3 select-none ${
+                            isSelected 
+                              ? "bg-amber-500/5 border-amber-500/30 shadow-2xs" 
+                              : "bg-white border-slate-200 hover:border-slate-350"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}} 
+                            className="mt-1 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer w-4 h-4 shrink-0"
+                          />
+                          <div className="flex-1 space-y-1">
+                            <p className={`text-xs font-semibold ${isSelected ? "text-amber-900" : "text-slate-800"}`}>
+                              {t.description}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2 text-[9px] text-slate-500 font-mono">
+                              <span className="px-1 py-0.2 rounded bg-slate-100 border border-slate-200">Owner: {t.ownerName}</span>
+                              <span className={`px-1 py-0.2 rounded ${t.priority === 'High' ? 'bg-rose-50 text-rose-500' : 'bg-slate-100'}`}>{t.priority}</span>
+                              <span className="text-slate-400">Rot: {formattedDate} ({t.recordOut.split(" ")[0]} ➔ {t.recordIn.split(" ")[0]})</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-100 mt-4">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allIds = dbState.history.flatMap(h => h.tasks || []).map(t => t.id);
+                    setSelectedCarryOverTaskIds(allIds);
+                  }}
+                  className="text-[10px] text-slate-650 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-2 py-1 rounded font-bold transition-all cursor-pointer"
+                >
+                  Select All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCarryOverTaskIds([])}
+                  className="text-[10px] text-slate-650 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-2 py-1 rounded font-bold transition-all cursor-pointer"
+                >
+                  Clear All
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCarryOverModal(false)}
+                  className="px-3.5 py-1.5 border border-slate-200 hover:bg-slate-50 rounded text-slate-600 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={selectedCarryOverTaskIds.length === 0}
+                  onClick={() => {
+                    const tasksToClone = dbState.history
+                      .flatMap(h => h.tasks || [])
+                      .filter(t => selectedCarryOverTaskIds.includes(t.id));
+
+                    if (tasksToClone.length === 0) return;
+
+                    const clonedTasks: HandoverTask[] = tasksToClone.map(t => ({
+                      ...t,
+                      id: `task-carry-${Date.now()}-${Math.random()}`,
+                      completed: false
+                    }));
+
+                    updateWorkspaceState((prev) => ({
+                      ...prev,
+                      tasks: [...prev.tasks, ...clonedTasks]
+                    }));
+
+                    addNotification(`Imported & carried over ${clonedTasks.length} tasks matching historical records!`, "success");
+                    setShowCarryOverModal(false);
+                  }}
+                  className="px-3.5 py-1.5 bg-amber-600 text-white hover:bg-amber-750 disabled:opacity-45 disabled:cursor-not-allowed rounded text-xs font-bold shadow-xs transition-colors cursor-pointer font-mono"
+                >
+                  Carry Over ({selectedCarryOverTaskIds.length})
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Full Verification Sign-Off Modal */}
+      {showSignoffConfirmationModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 transition-all duration-200 text-slate-800">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden p-5 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <h3 className="font-bold text-slate-900 font-display flex items-center gap-2 text-sm uppercase tracking-tight">
+                📝 Authorized Shift Handover Sign-Off
+              </h3>
+              {signoffResult.status === "idle" && (
+                <button
+                  type="button"
+                  onClick={() => setShowSignoffConfirmationModal(false)}
+                  className="text-slate-400 hover:text-slate-600 text-xs font-mono p-1 rounded-full hover:bg-slate-100"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 text-left">
+              {signoffResult.status === "idle" ? (
+                <>
+                  <p className="text-xs text-slate-500 leading-normal">
+                    You are finalizing the shift rotation. Please review the transitional briefing scope, verify recipient email endpoints, and explicitly confirm authorization.
+                  </p>
+
+                  <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-705 border-b border-slate-200 pb-1.5">
+                      🔄 Shift Operator Rotation Details
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-xs">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block font-mono">Outgoing shift lead</span>
+                        <strong className="text-slate-800 block text-xs truncate">{dbState.outgoingLead}</strong>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block font-mono">Incoming counterparts</span>
+                        <strong className="text-slate-800 block text-xs truncate">{dbState.incomingLead}</strong>
+                      </div>
+                    </div>
+                    {logText.trim() && (
+                      <div className="pt-2">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block font-mono">transitional synopsis notes</span>
+                        <p className="text-[11px] text-slate-600 bg-white border border-slate-200 p-2 rounded italic mt-1 leading-relaxed max-h-24 overflow-y-auto">
+                          &quot;{logText}&quot;
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-mono font-bold text-slate-505">
+                      Destination SMTP Alert Email Recipients
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g., ops@drill-portal.com, duty-officer@drill-portal.com"
+                      value={signoffEmailOverride}
+                      onChange={(e) => setSignoffEmailOverride(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-xs focus:ring-1 focus:ring-indigo-400 outline-none"
+                    />
+                    <p className="text-[10px] text-slate-400">Multiple email addresses can be separated by commas.</p>
+                  </div>
+
+                  <label className="flex items-start gap-3 cursor-pointer p-3 bg-indigo-505/5 rounded-lg border border-indigo-550/10 hover:bg-indigo-50 border-rose-100 bg-rose-50/20">
+                    <input
+                      type="checkbox"
+                      checked={signoffAgreement}
+                      onChange={(e) => setSignoffAgreement(e.target.checked)}
+                      className="mt-0.5 rounded border-rose-300 text-rose-600 focus:ring-rose-500 cursor-pointer w-4 h-4 shrink-0"
+                    />
+                    <span className="text-[11px] text-slate-755 leading-normal font-sans">
+                      I hereby authorize and certify that all shift logs, active safety checklists, outstanding tasks, and transition materials have been reviewed and successfully handed over in proper operational order.
+                    </span>
+                  </label>
+                </>
+              ) : signoffResult.status === "submitting" ? (
+                <div className="p-8 text-center space-y-3.5">
+                  <div className="w-8 h-8 rounded-full border-2 border-t-2 border-slate-200 border-t-indigo-600 animate-spin mx-auto"></div>
+                  <p className="text-xs font-semibold text-slate-800">{signoffResult.message}</p>
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl border border-slate-100 bg-white text-center space-y-4">
+                  <div className="text-4xl">
+                    {signoffResult.status === "success" ? "🎉" : "⚠️"}
+                  </div>
+                  <h4 className="text-sm font-extrabold text-slate-900 uppercase tracking-tight">
+                    {signoffResult.status === "success" ? "Handover Rotation Success!" : "Handover Saved with SMTP Warning"}
+                  </h4>
+                  <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-150 text-left">
+                    {signoffResult.message}
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    Dispatched recipients list: <strong className="font-mono text-slate-700 break-all">{signoffResult.sentTo}</strong>
+                  </p>
+                  
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSignoffConfirmationModal(false);
+                        setSignoffResult({ status: "idle", message: "", sentTo: "" });
+                      }}
+                      className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded text-xs tracking-wide shadow-xs cursor-pointer"
+                    >
+                      Acknowledge & Close
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {signoffResult.status === "idle" && (
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 mt-4.5">
+                <button
+                  type="button"
+                  onClick={() => setShowSignoffConfirmationModal(false)}
+                  className="px-3.5 py-1.5 border border-slate-200 hover:bg-slate-50 rounded text-slate-600 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!signoffAgreement || !signoffEmailOverride.trim()}
+                  onClick={() => {
+                    handleConfirmSignOffSubmit();
+                  }}
+                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-[0.99] text-white rounded text-xs font-bold shadow-xs transition-all cursor-pointer"
+                >
+                  Confirm & Authorize Rotation
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 3. See Previous Read Notifications Modal */}
+      {showPreviousNotificationsPopup && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 transition-all duration-200 text-slate-800">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden p-5 flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-155">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3.5">
+              <h3 className="font-bold text-slate-900 font-display flex items-center gap-2 text-sm uppercase tracking-tight text-left">
+                📜 Archived Operational Notifications
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowPreviousNotificationsPopup(false)}
+                className="text-slate-400 hover:text-slate-600 text-xs font-mono p-1 rounded-full hover:bg-slate-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 leading-normal mb-3 text-left">
+              These are cleared push/email operational notification records saved to browser local session storage.
+            </p>
+
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 border border-slate-100 rounded-lg p-3 bg-slate-50/50">
+              {readNotifications.length === 0 ? (
+                <div className="p-10 text-center text-xs text-slate-450 italic">
+                  No archived notifications in your local shift storage.
+                </div>
+              ) : (
+                readNotifications.map((n, idx) => (
+                  <div key={idx} className="bg-white border border-slate-250 rounded-lg p-3 text-left space-y-1 hover:shadow-2xs transition-shadow">
+                    <p className="text-xs text-slate-700 leading-normal font-sans">{n.message}</p>
+                    <span className="text-[9px] text-slate-400 font-mono block">{new Date(n.timestamp).toLocaleString() || n.timestamp}</span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-100 mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm("Are you sure you want to permanently clear your historical notification archive?")) {
+                    localStorage.removeItem("handover_read_notifications");
+                    setReadNotifications([]);
+                    addNotification("Notification archive cleared successfully.", "info");
+                  }
+                }}
+                className="px-3 py-1.5 border border-rose-200 hover:bg-rose-50 text-rose-650 rounded text-xs font-semibold cursor-pointer"
+              >
+                🗑️ Clear Archive
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPreviousNotificationsPopup(false)}
+                className="px-4 py-1.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded text-xs font-bold shadow-xs cursor-pointer"
+              >
+                Close Archive
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Dynamic Navigation/Info Header */}
       <header className="border-b border-rose-100 bg-white/85 sticky top-0 backdrop-blur z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
@@ -2336,7 +2866,16 @@ export default function App() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => setNotifications([])}
+                      onClick={() => {
+                        if (notifications.length > 0) {
+                          setReadNotifications(prev => {
+                            const updated = [...notifications, ...prev];
+                            localStorage.setItem("handover_read_notifications", JSON.stringify(updated));
+                            return updated;
+                          });
+                        }
+                        setNotifications([]);
+                      }}
                       className="text-[10px] text-slate-500 hover:text-slate-800 bg-white hover:bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-medium cursor-pointer"
                     >
                       Clear
@@ -2362,6 +2901,19 @@ export default function App() {
                         </div>
                       ))
                     )}
+                  </div>
+                  {/* Archived Notifications Footer Link */}
+                  <div className="bg-slate-50 border-t border-slate-100 p-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPreviousNotificationsPopup(true);
+                        setShowNotificationDropdown(false);
+                      }}
+                      className="text-[10px] text-indigo-600 hover:text-indigo-850 hover:underline font-bold font-mono inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      📜 See Previous Notifications ({readNotifications.length})
+                    </button>
                   </div>
                 </div>
               )}
@@ -2814,7 +3366,6 @@ service cloud.firestore {
                       <thead>
                         <tr className={`${activeTheme.mutedBg} ${activeTheme.cardSubText} font-mono border-b ${activeTheme.cardBorder} uppercase font-bold text-[10px]`}>
                           <th className="p-3">Event Type Trigger</th>
-                          <th className="p-3 text-center">In-App</th>
                           <th className="p-3 text-center">Email</th>
                           <th className="p-3 text-center">Push</th>
                         </tr>
@@ -2825,17 +3376,6 @@ service cloud.firestore {
                           <td className="p-3">
                             <span className="font-semibold block text-slate-900 dark:text-white text-left">⚙️ Task Assignments</span>
                             <span className={`text-[10px] ${activeTheme.cardSubText} block text-left`}>Assigning/updating actions & sub-checklists</span>
-                          </td>
-                          <td className="p-3 text-center">
-                            <input
-                              type="checkbox"
-                              checked={notificationSettings.taskAssignment.inApp}
-                              onChange={(e) => setNotificationSettings({
-                                ...notificationSettings,
-                                taskAssignment: { ...notificationSettings.taskAssignment, inApp: e.target.checked }
-                              })}
-                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
-                            />
                           </td>
                           <td className="p-3 text-center">
                             <input
@@ -2870,17 +3410,6 @@ service cloud.firestore {
                           <td className="p-3 text-center">
                             <input
                               type="checkbox"
-                              checked={notificationSettings.overdueAlert.inApp}
-                              onChange={(e) => setNotificationSettings({
-                                ...notificationSettings,
-                                overdueAlert: { ...notificationSettings.overdueAlert, inApp: e.target.checked }
-                              })}
-                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
-                            />
-                          </td>
-                          <td className="p-3 text-center">
-                            <input
-                              type="checkbox"
                               checked={notificationSettings.overdueAlert.email}
                               onChange={(e) => setNotificationSettings({
                                 ...notificationSettings,
@@ -2907,17 +3436,6 @@ service cloud.firestore {
                           <td className="p-3">
                             <span className="font-semibold block text-slate-900 dark:text-white text-left">📝 Handover Sign-Offs</span>
                             <span className={`text-[10px] ${activeTheme.cardSubText} block text-left`}>Official shift transitions & lead certifications</span>
-                          </td>
-                          <td className="p-3 text-center">
-                            <input
-                              type="checkbox"
-                              checked={notificationSettings.handoverSignoff.inApp}
-                              onChange={(e) => setNotificationSettings({
-                                ...notificationSettings,
-                                handoverSignoff: { ...notificationSettings.handoverSignoff, inApp: e.target.checked }
-                              })}
-                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
-                            />
                           </td>
                           <td className="p-3 text-center">
                             <input
@@ -2952,17 +3470,6 @@ service cloud.firestore {
                           <td className="p-3 text-center">
                             <input
                               type="checkbox"
-                              checked={notificationSettings.rosterUpdate.inApp}
-                              onChange={(e) => setNotificationSettings({
-                                ...notificationSettings,
-                                rosterUpdate: { ...notificationSettings.rosterUpdate, inApp: e.target.checked }
-                              })}
-                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
-                            />
-                          </td>
-                          <td className="p-3 text-center">
-                            <input
-                              type="checkbox"
                               checked={notificationSettings.rosterUpdate.email}
                               onChange={(e) => setNotificationSettings({
                                 ...notificationSettings,
@@ -2993,28 +3500,56 @@ service cloud.firestore {
                     </label>
                     <div className="flex gap-2.5">
                       <input
-                        type="email"
+                        type="text"
                         value={notificationSettings.userEmail}
                         onChange={(e) => setNotificationSettings({ ...notificationSettings, userEmail: e.target.value })}
                         className={`flex-1 ${activeTheme.inputBg} border rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-400 focus:border-indigo-500 outline-none font-mono`}
-                        placeholder="operator@drillingportal.com"
+                        placeholder="e.g. lead-operator@drill-portal.com, supervisor@drill-portal.com"
                       />
                       <button
                         type="button"
-                        onClick={() => addNotification(`Destination alert endpoint updated to: ${notificationSettings.userEmail}`, "success")}
+                        onClick={() => {
+                          const raw = notificationSettings.userEmail;
+                          const cleanEmails = raw
+                            .split(/[;,]/)
+                            .map(e => e.trim())
+                            .filter(Boolean);
+
+                          if (cleanEmails.length === 0) {
+                            alert("Please enter at least one valid email address.");
+                            return;
+                          }
+
+                          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                          const invalidEmails = cleanEmails.filter(e => !emailRegex.test(e));
+                          if (invalidEmails.length > 0) {
+                            alert(`Invalid email format detected for:\n${invalidEmails.join("\n")}\n\nPlease verify and try again.`);
+                            return;
+                          }
+
+                          const formatted = cleanEmails.join(", ");
+                          setNotificationSettings(prev => ({ ...prev, userEmail: formatted }));
+                          addNotification(`Destination alert endpoint updated to: ${formatted}`, "success");
+                          alert(`Success!\n\nEmail endpoint(s) verified & updated: \n• ${cleanEmails.join("\n• ")}\n\nNodemailer will relay shift rotation notices to all listed recipients.`);
+                        }}
                         className={`px-3.5 py-1.5 ${activeTheme.primaryBtn} rounded text-xs font-bold transition-all cursor-pointer`}
                       >
                         Apply Override
                       </button>
                     </div>
-                    <span className={`block text-[10px] ${activeTheme.cardSubText} text-left`}>
-                      Note: Email relays will dispatch HTML transactional alerts visually rendered in the Simulator Box to this endpoint.
-                    </span>
+                    <div className="space-y-1">
+                      <p className={`text-[10px] ${activeTheme.cardSubText} text-left leading-normal`}>
+                        <strong>📧 Email Dispatch Info:</strong> Direct HTML reports with current logs, active checklist tasks, and backlog tallies are automatically compiled and delivered using a secure Express SMTP relay. Support multiple emails by dividing them with commas.
+                      </p>
+                      <p className={`text-[10px] ${activeTheme.cardSubText} text-left leading-normal`}>
+                        <strong>📲 Push Notification Info:</strong> Instant alerts regarding shift handover updates, new roster joins, and pending checklist items are sent as system pushes, accessible in the sandbox simulatoroutbox right beside.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
                 {/* Simulated Delivery Station Column */}
-                <div className="lg:col-span-6 flex flex-col h-[345px] border border-slate-200/90 rounded-xl overflow-hidden shadow-3xs bg-slate-900/5">
+                <div className="lg:col-span-6 flex flex-col h-full min-h-[480px] border border-slate-200/90 rounded-xl overflow-hidden shadow-3xs bg-slate-900/5">
                   <div className="bg-slate-900/5 pb-0 border-b border-slate-200">
                     <div className="flex items-center justify-between px-4 pt-3 pb-1">
                       <span className="text-xs font-extrabold uppercase tracking-widest text-[#475569] font-mono text-left block">
@@ -3401,12 +3936,24 @@ service cloud.firestore {
               {/* Header Box styled with design theme */}
               <div className={`${activeTheme.cardBg} p-4 border-b ${activeTheme.cardBorder} flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
                 <div className="flex items-center gap-2">
-                  <span className={`w-1.5 h-4 ${activeTheme.id === 'alpine-forest' ? 'bg-emerald-605' : 'bg-indigo-600'} rounded-full shrink-0 animate-pulse bg-indigo-500`}></span>
+                  <span className={`w-1.5 h-4 ${activeTheme.id === 'alpine-forest' ? 'bg-emerald-600' : 'bg-indigo-600'} rounded-full shrink-0 animate-pulse bg-indigo-505`}></span>
                   <div>
-                    <h3 className={`text-sm font-bold font-display ${activeTheme.cardTitleText} flex items-center gap-1.5`}>
-                      Active Handover Cycle Tasks
+                    <h3 className={`text-sm font-bold font-display ${activeTheme.cardTitleText} flex flex-col sm:flex-row sm:items-center gap-2`}>
+                      <span>Active Handover Cycle Tasks</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCarryOverTaskIds([]);
+                          setShowCarryOverModal(true);
+                        }}
+                        className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 hover:scale-[1.02] active:scale-[0.98] text-white rounded text-[10px] font-bold font-mono inline-flex items-center gap-1 shadow-2xs transition-all cursor-pointer"
+                        title="Import and carry over tasks from any historical registered handover"
+                      >
+                        <Copy className="w-2.5 h-2.5" />
+                        Carry Over Past Tasks
+                      </button>
                     </h3>
-                    <p className={`text-[11px] ${activeTheme.cardSubText} leading-none`}>
+                    <p className={`text-[11px] ${activeTheme.cardSubText} leading-none mt-1.5 sm:mt-1`}>
                       Critical tasks verified and actioned during the active transition window.
                     </p>
                   </div>
@@ -3530,22 +4077,27 @@ service cloud.firestore {
                               </td>
 
                               <td className="p-3 text-center">
-                                {task.completed ? (
-                                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-550 text-emerald-600 border border-emerald-500/20 uppercase font-mono">
-                                    Signed Off
+                                <div className="flex flex-col items-center gap-1">
+                                  {task.completed ? (
+                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 uppercase font-mono">
+                                      Signed Off
+                                    </span>
+                                  ) : (
+                                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                                      countdown.isOverdue 
+                                        ? "bg-rose-500/10 text-rose-500 border-rose-500/20 animate-pulse" 
+                                        : countdown.isToday
+                                        ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                                        : `${activeTheme.mutedBg} ${activeTheme.cardTitleText} ${activeTheme.cardBorder}`
+                                    }`}>
+                                      <Clock className="w-3 h-3 text-slate-400" />
+                                      {countdown.text}
+                                    </span>
+                                  )}
+                                  <span className={`text-[9px] font-mono ${activeTheme.cardSubText} block`}>
+                                    Due: {task.dueDate}
                                   </span>
-                                ) : (
-                                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-mono font-bold border ${
-                                    countdown.isOverdue 
-                                      ? "bg-rose-500/10 text-rose-500 border-rose-500/20 animate-pulse" 
-                                      : countdown.isToday
-                                      ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
-                                      : `${activeTheme.mutedBg} ${activeTheme.cardTitleText} ${activeTheme.cardBorder}`
-                                  }`}>
-                                    <Clock className="w-3 h-3 text-slate-400" />
-                                    {countdown.text}
-                                  </span>
-                                )}
+                                </div>
                               </td>
 
                               <td className="p-3 text-center">
@@ -4339,9 +4891,9 @@ service cloud.firestore {
                           &quot;{record.logText}&quot;
                         </div>
 
-                        <div className={`flex items-center justify-between text-[9px] ${activeTheme.cardSubText} font-mono leading-none`}>
-                          <span>Verified: {record.tasksCount} Active • {record.backlogCount} Backlog</span>
-                          <span className={`${activeTheme.cardSubText} font-sans`}>By User: <strong>{record.signedOffBy}</strong></span>
+                        <div className={`flex items-center justify-between text-[9px] ${activeTheme.cardSubText} font-mono leading-none border-t ${activeTheme.cardBorder} pt-2`}>
+                          <span>Report: {record.tasksCount} Tasks • {record.backlogCount} Backlog</span>
+                          <span className="font-sans">Lead: <strong>{record.signedOffBy}</strong></span>
                         </div>
                       </div>
                     );
