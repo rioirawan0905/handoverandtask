@@ -1077,7 +1077,14 @@ export default function App() {
           html: emailHtml
         })
       })
-      .then(r => r.json())
+      .then(async r => {
+        const text = await r.text();
+        try {
+          return JSON.parse(text);
+        } catch (err) {
+          throw new Error(`Non-JSON backend response (Status ${r.status}): ${text.substring(0, 200) || "(Empty Body)"}`);
+        }
+      })
       .then(data => {
         if (data.success) {
           addNotification(`📧 Real Email Relay: Dispatched successfully! Message ID: ${data.messageId}`, "success");
@@ -2088,7 +2095,13 @@ export default function App() {
             `
           })
         });
-        const data = await response.json();
+        const totalText = await response.text();
+        let data: any;
+        try {
+          data = JSON.parse(totalText);
+        } catch (jsonErr: any) {
+          throw new Error(`Response from server is not valid JSON (StatusCode ${response.status}): ${totalText.substring(0, 200) || "(Empty Body)"}`);
+        }
         if (data.success) {
           setSignoffResult({
             status: "success",
