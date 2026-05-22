@@ -460,6 +460,24 @@ export default function App() {
     };
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [apiBaseUrl, setApiBaseUrl] = useState<string>(() => {
+    const saved = localStorage.getItem("handover_api_base_url");
+    if (saved) return saved;
+    // Auto-detect deployment domain
+    const origin = window.location.origin;
+    if (!origin.includes("localhost") && !origin.includes("run.app") && !origin.includes("127.0.0.1")) {
+      return "https://ais-pre-aopq5mxr3yvd5dacnrbmpq-334655952811.europe-west1.run.app";
+    }
+    return "";
+  });
+
+  const getApiUrl = (path: string) => {
+    const base = apiBaseUrl.trim();
+    if (!base) return path;
+    const cleanBase = base.replace(/\/+$/, "");
+    return `${cleanBase}${path}`;
+  };
+
   const [firestoreInstance, setFirestoreInstance] = useState<any>(null);
 
   // Sorting state for Active Tasks and Backlog Tasks
@@ -1127,7 +1145,7 @@ export default function App() {
   // Load Firestore configurations initially
   useEffect(() => {
     // 1. Retrieve dynamic backend configuration keys (works in Dev & Cloud Run production)
-    fetch("/api/config")
+    fetch(getApiUrl("/api/config"))
       .then((res) => {
         if (!res.ok) throw new Error("Backend api not available");
         return res.json();
@@ -1967,7 +1985,7 @@ export default function App() {
     // Trigger physical SMTP dispatch directly to parse standard SMTP results
     if (signoffEmailOverride.trim()) {
       try {
-        const response = await fetch("/api/send-email", {
+        const response = await fetch(getApiUrl("/api/send-email"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -3202,6 +3220,49 @@ service cloud.firestore {
                     <span className="font-semibold">{connectionStatusMsg.text}</span>
                   </div>
                 )}
+
+                {/* Custom API Base URL Configuration */}
+                <div className={`mt-4 pt-4 border-t ${activeTheme.cardBorder} space-y-2`}>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs">🌐</span>
+                    <span className={`text-[11px] font-bold uppercase tracking-wider ${activeTheme.cardTitleText} font-mono`}>
+                      Backend API Endpoint (Cloudflare / Multi-Host)
+                    </span>
+                  </div>
+                  <p className={`text-[10px] ${activeTheme.cardSubText} leading-relaxed`}>
+                    If your frontend is hosted on Cloudflare, point this endpoint to your live Cloud Run backend URL to prevent CORS or 405 errors.
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. https://ais-pre-...-334655952811.europe-west1.run.app"
+                      value={apiBaseUrl}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setApiBaseUrl(val);
+                        localStorage.setItem("handover_api_base_url", val);
+                      }}
+                      className={`${activeTheme.inputBg} border rounded px-2.5 py-1 text-xs focus:ring-1 focus:ring-indigo-400 outline-none flex-1 font-mono shadow-xs`}
+                    />
+                    {apiBaseUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setApiBaseUrl("");
+                          localStorage.removeItem("handover_api_base_url");
+                          addNotification("Reverted to local/relative API path.", "info");
+                        }}
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded transition-colors border border-slate-300 pointer-events-auto"
+                        title="Clear and reset to relative"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                  <div className="text-[9px] font-mono opacity-85 text-slate-500">
+                    Active endpoint path: <span className="text-indigo-600 font-semibold">{getApiUrl("/api/send-email")}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
