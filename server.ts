@@ -15,6 +15,7 @@ async function startServer() {
   const handleSendEmail = async (req: express.Request, res: express.Response) => {
     console.log("Incoming email dispatch request body:", JSON.stringify(req.body));
     const { to, subject, html, text, recipients, handover_data } = req.body;
+    const originLink = req.headers.referer || req.headers.origin || "https://ais-pre-aopq5mxr3yvd5dacnrbmpq-334655952811.europe-west1.run.app";
 
     let finalTo = to || recipients;
     if (!finalTo) {
@@ -78,7 +79,10 @@ async function startServer() {
       finalHtml = finalHtml || `
         <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 650px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #1e293b; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
           <div style="text-align: center; margin-bottom: 24px; border-bottom: 2px solid #ef4444; padding-bottom: 16px;">
-            <h1 style="color: #0f172a; margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.025em;">🏗️ PHASE 5 DRILLING HANDOVER</h1>
+            <h1 style="color: #0f172a; margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.025em; display: inline-block; vertical-align: middle;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 6px;"><line x1="12" y1="2" x2="12" y2="22" /><path d="M5 22L12 2l7 20" /><line x1="4" y1="22" x2="20" y2="22" /><line x1="6.5" y1="17" x2="17.5" y2="17" /><line x1="8.5" y1="12" x2="15.5" y2="12" /><line x1="10" y1="7" x2="14" y2="7" /><path d="M12 7l4 5M12 7l-4 5M12 12l5.5 5M12 12l-5.5 5" /><circle cx="12" cy="2" r="1.5" fill="#dc2626" /></svg>
+              PHASE 5 DRILLING HANDOVER
+            </h1>
             <p style="color: #64748b; font-size: 13px; margin: 4px 0 0 0; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Certified Safety & Operations Rota Journal</p>
           </div>
 
@@ -152,6 +156,7 @@ async function startServer() {
           <div style="text-align: center; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8;">
             <p style="margin: 0;">This is an officially certified legal operational shift record. Real-world SMTP delivery completed successfully.</p>
             <p style="margin: 4px 0 0 0; font-family: monospace;">Verification ID: ${Math.random().toString(36).substring(2, 10).toUpperCase()}</p>
+            <p style="margin: 10px 0 0 0; font-size: 11px;"><a href="${originLink}" style="color: #dc2626; text-decoration: underline; font-weight: 600; font-family: system-ui, sans-serif;">Back to Drilling Handover Platform</a></p>
           </div>
         </div>
       `;

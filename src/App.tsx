@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
+import { UpcomingTasksChart } from "./components/UpcomingTasksChart";
 
 enum OperationType {
   CREATE = 'create',
@@ -228,70 +229,14 @@ export const DEFAULT_PERSONNEL: PersonnelItem[] = [
   { id: "p-4", name: "Markus Webb", title: "Lead Engineer" }
 ];
 
-// Initial template mock data populated automatically with previous handover states and active tasks
+// Initial template mock data populated automatically with previous handover states and active tasks, now empty on default
 const DEFAULT_WORKSPACE_STATE: HandoverState = {
-  outgoingLead: "George Vance (Senior Operator)",
-  incomingLead: "Sarah Connor (Rig Manager)",
+  outgoingLead: "",
+  incomingLead: "",
   personnel: DEFAULT_PERSONNEL,
-  tasks: [
-    { id: "init-t1", description: "Supervise heavy casing string pick-up assembly and slip test", ownerName: "Marcus Crane (Drill Superintendent)", priority: "High", dueDate: "2026-05-22", completed: false },
-    { id: "init-t2", description: "Check gas chromatograph calibration bottles and line filters", ownerName: "George Vance (Senior Operator)", priority: "Medium", dueDate: "2026-05-23", completed: false },
-    { id: "init-t3", description: "Calibrate high-pressure transducer on Mud Pump 2 on Rig Floor", ownerName: "George Vance (Senior Operator)", priority: "High", dueDate: "2026-05-22", completed: false },
-    { id: "init-t4", description: "Inspect accumulator backup nitrogen charge on BOP stack", ownerName: "Markus Webb (Lead Engineer)", priority: "High", dueDate: "2026-05-23", completed: false }
-  ],
-  backlog: [
-    { id: "init-b1", description: "Deep clean main rig deck and tool houses", ownerName: "Marcus Crane (Drill Superintendent)", priority: "Low", backlogDate: "2026-05-18", completed: false }
-  ],
-  history: [
-    {
-      id: "hist-preset-3",
-      date: "2026-05-20T06:00:00Z",
-      outgoingLead: "Marcus Crane (Drill Superintendent)",
-      incomingLead: "George Vance (Senior Operator)",
-      logText: "Casing delivery verified. Supervised rig floor crew safety induction. Heavy lift plans cleared.",
-      tasksCount: 2,
-      backlogCount: 0,
-      signedOffBy: "Marcus Crane (Drill Superintendent)",
-      tasks: [
-        { id: "p3-t1", description: "Supervise heavy casing string pick-up assembly and slip test", ownerName: "Marcus Crane (Drill Superintendent)", priority: "High", dueDate: "2026-05-22", completed: false },
-        { id: "p3-t2", description: "Check gas chromatograph calibration bottles and line filters", ownerName: "George Vance (Senior Operator)", priority: "Medium", dueDate: "2026-05-23", completed: false }
-      ],
-      backlog: []
-    },
-    {
-      id: "hist-preset-2",
-      date: "2026-05-19T18:00:00Z",
-      outgoingLead: "Sarah Connor (Rig Manager)",
-      incomingLead: "Marcus Crane (Drill Superintendent)",
-      logText: "Re-reamed sidetrack section down to 8,400 ft. Standby pressure normal. Driller key files updated.",
-      tasksCount: 3,
-      backlogCount: 0,
-      signedOffBy: "Sarah Connor (Rig Manager)",
-      tasks: [
-        { id: "p2-t1", description: "Verify casing mud weights and fluid viscosity density calculations", ownerName: "Sarah Connor (Rig Manager)", priority: "High", dueDate: "2026-05-21", completed: false },
-        { id: "p2-t2", description: "Test emergency main kill switch safety valves on Powerhouse 4", ownerName: "Markus Webb (Lead Engineer)", priority: "High", dueDate: "2026-05-22", completed: false },
-        { id: "p2-t3", description: "Scribe drilling jar stroke indicators and torque values", ownerName: "George Vance (Senior Operator)", priority: "Medium", dueDate: "2026-05-23", completed: false }
-      ],
-      backlog: []
-    },
-    {
-      id: "hist-preset-1",
-      date: "2026-05-19T06:00:00Z",
-      outgoingLead: "George Vance (Senior Operator)",
-      incomingLead: "Sarah Connor (Rig Manager)",
-      logText: "Completed choke manifold lining, bleed valves balanced. Monitored mud line return viscosity.",
-      tasksCount: 4,
-      backlogCount: 0,
-      signedOffBy: "George Vance (Senior Operator)",
-      tasks: [
-        { id: "p1-t1", description: "Calibrate high-pressure transducer on Mud Pump 2 on Rig Floor", ownerName: "George Vance (Senior Operator)", priority: "High", dueDate: "2026-05-22", completed: false },
-        { id: "p1-t2", description: "Inspect accumulator backup nitrogen charge on BOP stack", ownerName: "Markus Webb (Lead Engineer)", priority: "High", dueDate: "2026-05-23", completed: false },
-        { id: "p1-t3", description: "Run shear rams functional stroke test telemetry diagnostics", ownerName: "Sarah Connor (Rig Manager)", priority: "Medium", dueDate: "2026-05-24", completed: false },
-        { id: "p1-t4", description: "Update main mud logger telemetry feed log files", ownerName: "George Vance (Senior Operator)", priority: "Low", dueDate: "2026-05-25", completed: false }
-      ],
-      backlog: []
-    }
-  ],
+  tasks: [],
+  backlog: [],
+  history: [],
   signoffChecklist: {
     blockersReviewed: false,
     systemsNormal: false,
@@ -508,6 +453,18 @@ export default function App() {
 
   // Standalone Dashboard State
   const [allWorkspacesData, setAllWorkspacesData] = useState<Record<string, HandoverState>>({});
+  
+  // One-time startup check: clear old data in Primary Shift Space to make it empty
+  useEffect(() => {
+    const isPrimaryCleaned = localStorage.getItem("handover_primary_cleaned_v2");
+    if (!isPrimaryCleaned) {
+      localStorage.removeItem("handover_local_demo_db_ws-primary-shift-space");
+      localStorage.setItem("handover_primary_cleaned_v2", "true");
+      if (currentSelectedWorkspaceId === "ws-primary-shift-space") {
+        setDbState(DEFAULT_WORKSPACE_STATE);
+      }
+    }
+  }, [currentSelectedWorkspaceId]);
   
   // Database configuration
   const [firebaseConfigMode, setFirebaseConfigMode] = useState<"demo" | "cloud">("cloud");
@@ -1064,48 +1021,9 @@ export default function App() {
       };
       setSimulatedEmails(prev => [newEmail, ...prev]);
 
-      // Secure physical dispatch request via full-stack /api/send-email
-      fetch("/api/send-email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          recipients: newEmail.to,
-          handover_data: {
-            workspaceName: workspaces.find(w => w.id === currentSelectedWorkspaceId)?.name || currentSelectedWorkspaceId,
-            outgoingLead: dbState.outgoingLead || "N/A",
-            incomingLead: dbState.incomingLead || "N/A",
-            logText: logText || message,
-            date: new Date().toISOString(),
-            tasksCount: dbState.tasks.length,
-            backlogCount: dbState.backlog.length,
-            signedOffBy: dbState.outgoingLead || "N/A",
-            tasks: dbState.tasks,
-            backlog: dbState.backlog
-          }
-        })
-      })
-      .then(async r => {
-        const text = await r.text();
-        try {
-          return JSON.parse(text);
-        } catch (err) {
-          throw new Error(`Non-JSON backend response (Status ${r.status}): ${text.substring(0, 200) || "(Empty Body)"}`);
-        }
-      })
-      .then(data => {
-        if (data.success) {
-          addNotification(`📧 Real Email Relay: Dispatched successfully! Message ID: ${data.messageId}`, "success");
-        } else if (data.reason === "SMTP_NOT_CONFIGURED") {
-          console.log("Real SMTP variables not configured. Preserved strictly inside Simulator panel.");
-        } else {
-          addNotification(`⚠️ SMTP delivery problem: ${data.message}`, "warning");
-        }
-      })
-      .catch(e => {
-        console.warn("Could not dispatch actual email to backend server:", e);
-      });
+      // Note: Automatic physical email dispatch is disabled per scope requirements.
+      // Physical emails are strictly dispatched only when of actual sign-off completion modal is confirmed.
+      console.log("Simulated email logged to outbox. Automatic physical email dispatch bypassed.");
     }
 
     // 3. Simulated Mobile/Desktop Push Alert
@@ -1497,19 +1415,39 @@ export default function App() {
           });
         }
       } else {
-        // Document does not exist yet. Initialize it with our current local or default state
-        setDbState((current) => {
-          setDoc(docRef, current).then(() => {
-            setConnectionStatusMsg({
-              type: "success",
-              text: `Initialized repository document in your Firestore Cloud: "${configKeys.projectId}" -> workspace "${currentSelectedWorkspaceId}"!`
+        // Document does not exist yet. Only initialize ws-primary-shift-space automatically.
+        // For other workspaces, do NOT automatically recreate them in Firestore to prevent reviving deleted spaces!
+        if (currentSelectedWorkspaceId === "ws-primary-shift-space") {
+          setDbState((current) => {
+            setDoc(docRef, current).then(() => {
+              setConnectionStatusMsg({
+                type: "success",
+                text: `Initialized repository document in your Firestore Cloud: "${configKeys.projectId}" -> workspace "${currentSelectedWorkspaceId}"!`
+              });
+            }).catch(writeErr => {
+              console.error("Initial Firestore document push failed", writeErr);
+              handleFirestoreError(writeErr, OperationType.WRITE, `handoverSystem/${currentSelectedWorkspaceId}`);
             });
-          }).catch(writeErr => {
-            console.error("Initial Firestore document push failed", writeErr);
-            handleFirestoreError(writeErr, OperationType.WRITE, `handoverSystem/${currentSelectedWorkspaceId}`);
+            return current;
           });
-          return current;
-        });
+        } else {
+          // The database workspace of this ID has been deleted or does not exist in the collection collection.
+          // Let's fallback gracefully without writing to Firestore.
+          setConnectionStatusMsg({
+            type: "warning",
+            text: `Workspace "${currentSelectedWorkspaceId}" is empty or has been deleted from cloud database.`
+          });
+          setDbState(DEFAULT_WORKSPACE_STATE);
+
+          // Gracefully filter out this invalid/deleted workspace from list and switch back to default
+          setWorkspaces(prev => {
+            const updated = prev.filter(w => w.id !== currentSelectedWorkspaceId);
+            localStorage.setItem("handover_workspace_list", JSON.stringify(updated));
+            return updated;
+          });
+          
+          handleWorkspaceChange("ws-primary-shift-space");
+        }
       }
     }, (err) => {
       console.error("Snapshot subscription error", err);
@@ -1627,6 +1565,7 @@ export default function App() {
           type: "success",
           text: `Prepared new workspace document in your Firestore: "${cleanName}"`
         });
+        addNotification(`Successfully created handover space "${cleanName}" in Firestore Cloud!`, "success");
         setShowNewWorkspaceModal(false);
         setNewWorkspaceInputName("");
         setWorkspaceCreateError("");
@@ -1661,6 +1600,7 @@ export default function App() {
       setCurrentSelectedWorkspaceId(id);
       localStorage.setItem("handover_active_workspace_id", id);
       
+      addNotification(`Successfully created handover space "${cleanName}" in Local Storage!`, "success");
       setShowNewWorkspaceModal(false);
       setNewWorkspaceInputName("");
       setWorkspaceCreateError("");
@@ -2004,6 +1944,13 @@ export default function App() {
 
   // Toggle checklist items
   const handleToggleChecklist = (key: keyof SignoffChecklist) => {
+    const isLeadOut = !!dbState.outgoingLead?.trim();
+    const isLeadIn = !!dbState.incomingLead?.trim();
+    if (!isLeadOut || !isLeadIn) {
+      alert("Verification Restricted!\n\nYou must first select both the Outgoing Shift Lead and the Incoming Counterpart in the Shift Rotation panel before certifying any safety checklists.");
+      addNotification("⚠️ Select Outgoing & Incoming Leads first to unlock checklist", "warning");
+      return;
+    }
     updateWorkspaceState((prev) => ({
       ...prev,
       signoffChecklist: {
@@ -2222,7 +2169,7 @@ export default function App() {
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-slate-900 font-display flex items-center gap-2 text-sm uppercase tracking-tight">
-                <Plus className="w-4 h-4 text-indigo-650" />
+                <Plus className="w-4 h-4 text-indigo-600" />
                 New Handover Tracking Space
               </h3>
               <button
@@ -2277,7 +2224,7 @@ export default function App() {
               </button>
               <button
                 type="submit"
-                className="px-3.5 py-1.5 bg-indigo-650 text-white hover:bg-indigo-700 rounded text-xs font-bold shadow-xs active:scale-98 transition-transform cursor-pointer"
+                className="px-3.5 py-1.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded text-xs font-bold shadow-xs active:scale-98 transition-transform cursor-pointer"
               >
                 Create Handover Space
               </button>
@@ -4523,6 +4470,13 @@ service cloud.firestore {
 
                       </div>
 
+                      {/* 1.5. Dynamic Upcoming Tasks D3.js Chart */}
+                      <UpcomingTasksChart
+                        tasks={allTasks}
+                        activeTheme={activeTheme}
+                        referenceDateStr={CURRENT_DATE_STR}
+                      />
+
                       {/* 2. Secondary Panel Grid: Aging and Resource Matrix side-by-side on lg */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
@@ -4691,15 +4645,24 @@ service cloud.firestore {
                 {/* Checklist */}
                 <div className="p-4 space-y-4">
                   <div className="space-y-2.5">
-                    <label className={`text-[10px] uppercase font-bold tracking-wider ${activeTheme.cardSubText} font-mono block`}>
-                      Mandatory Operating Verifications
-                    </label>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <label className={`text-[10px] uppercase font-bold tracking-wider ${activeTheme.cardSubText} font-mono block`}>
+                        Mandatory Operating Verifications
+                      </label>
+                      {!areLeadsSet && (
+                        <span className="text-[9px] font-semibold text-rose-600 bg-rose-500/10 border border-rose-200/50 px-1.5 py-0.5 rounded flex items-center gap-1 font-mono uppercase animate-pulse">
+                          🔒 Selection Required
+                        </span>
+                      )}
+                    </div>
 
                     {/* Checkbox item 1 */}
                     <button
                       type="button"
                       onClick={() => handleToggleChecklist("blockersReviewed")}
-                      className={`w-full flex items-start gap-2.5 text-left p-2.5 ${activeTheme.mutedBg} border ${activeTheme.cardBorder} hover:border-emerald-500 rounded-lg transition-all text-xs cursor-pointer group`}
+                      className={`w-full flex items-start gap-2.5 text-left p-2.5 ${activeTheme.mutedBg} border ${activeTheme.cardBorder} rounded-lg transition-all text-xs cursor-pointer group ${
+                        !areLeadsSet ? "opacity-55 cursor-not-allowed hover:border-slate-200" : "hover:border-emerald-500"
+                      }`}
                     >
                       <span className="mt-0.5 shrink-0">
                         {dbState.signoffChecklist.blockersReviewed ? (
@@ -4718,7 +4681,9 @@ service cloud.firestore {
                     <button
                       type="button"
                       onClick={() => handleToggleChecklist("systemsNormal")}
-                      className={`w-full flex items-start gap-2.5 text-left p-2.5 ${activeTheme.mutedBg} border ${activeTheme.cardBorder} hover:border-emerald-500 rounded-lg transition-all text-xs cursor-pointer group`}
+                      className={`w-full flex items-start gap-2.5 text-left p-2.5 ${activeTheme.mutedBg} border ${activeTheme.cardBorder} rounded-lg transition-all text-xs cursor-pointer group ${
+                        !areLeadsSet ? "opacity-55 cursor-not-allowed hover:border-slate-200" : "hover:border-emerald-500"
+                      }`}
                     >
                       <span className="mt-0.5 shrink-0">
                         {dbState.signoffChecklist.systemsNormal ? (
@@ -4737,7 +4702,9 @@ service cloud.firestore {
                     <button
                       type="button"
                       onClick={() => handleToggleChecklist("credsTransferred")}
-                      className={`w-full flex items-start gap-2.5 text-left p-2.5 ${activeTheme.mutedBg} border ${activeTheme.cardBorder} hover:border-emerald-500 rounded-lg transition-all text-xs cursor-pointer group`}
+                      className={`w-full flex items-start gap-2.5 text-left p-2.5 ${activeTheme.mutedBg} border ${activeTheme.cardBorder} rounded-lg transition-all text-xs cursor-pointer group ${
+                        !areLeadsSet ? "opacity-55 cursor-not-allowed hover:border-slate-200" : "hover:border-emerald-500"
+                      }`}
                     >
                       <span className="mt-0.5 shrink-0">
                         {dbState.signoffChecklist.credsTransferred ? (
