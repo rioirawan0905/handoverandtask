@@ -1064,8 +1064,8 @@ export default function App() {
       };
       setSimulatedEmails(prev => [newEmail, ...prev]);
 
-      // Secure physical dispatch request via full-stack /api/send-email
-      fetch("/api/send-email", {
+      // Secure physical dispatch request via full-stack /api/dispatch-smtp
+      fetch("/api/dispatch-smtp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -2051,7 +2051,7 @@ export default function App() {
     // Trigger physical SMTP dispatch directly to parse standard SMTP results
     if (signoffEmailOverride.trim()) {
       try {
-        const response = await fetch("/api/send-email", {
+        const response = await fetch("/api/dispatch-smtp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

@@ -12,7 +12,7 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
   // API to securely dispatch actual operational notification emails via standard SMTP parameters
-  app.post("/api/send-email", async (req, res) => {
+  app.post("/api/dispatch-smtp", async (req, res) => {
     const { to, subject, html, text } = req.body;
 
     const host = process.env.SMTP_HOST;
