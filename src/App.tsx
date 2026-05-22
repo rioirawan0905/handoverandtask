@@ -1064,17 +1064,26 @@ export default function App() {
       };
       setSimulatedEmails(prev => [newEmail, ...prev]);
 
-      // Secure physical dispatch request via full-stack /api/dispatch-smtp
-      fetch("/api/dispatch-smtp", {
+      // Secure physical dispatch request via full-stack /api/send-email
+      fetch("/api/send-email", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          to: newEmail.to,
-          subject: newEmail.subject,
-          text: newEmail.body,
-          html: emailHtml
+          recipients: newEmail.to,
+          handover_data: {
+            workspaceName: workspaces.find(w => w.id === currentSelectedWorkspaceId)?.name || currentSelectedWorkspaceId,
+            outgoingLead: dbState.outgoingLead || "N/A",
+            incomingLead: dbState.incomingLead || "N/A",
+            logText: logText || message,
+            date: new Date().toISOString(),
+            tasksCount: dbState.tasks.length,
+            backlogCount: dbState.backlog.length,
+            signedOffBy: dbState.outgoingLead || "N/A",
+            tasks: dbState.tasks,
+            backlog: dbState.backlog
+          }
         })
       })
       .then(async r => {
@@ -2051,48 +2060,23 @@ export default function App() {
     // Trigger physical SMTP dispatch directly to parse standard SMTP results
     if (signoffEmailOverride.trim()) {
       try {
-        const response = await fetch("/api/dispatch-smtp", {
+        const response = await fetch("/api/send-email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            to: signoffEmailOverride,
-            subject: `[HANDOVER SIGN-OFF] Shift transition on "${workspaceName}" by ${newHistoryItem.signedOffBy}`,
-            text: `Shift rotation signed off successfully by ${newHistoryItem.signedOffBy} for space "${workspaceName}". Total completed tasks: ${currentTasks.filter(t=>t.completed).length}.`,
-            html: `
-              <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #1e293b;">
-                <h2 style="color: #4f46e5; margin-top: 0;">📝 Shift Handover Signed Off Successfully</h2>
-                <p style="font-size: 14px; line-height: 1.6; color: #475569;">
-                  A transition rotation package has been certified and locked for space <strong>${workspaceName}</strong>.
-                </p>
-                <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #f1f5f9;">
-                  <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
-                    <tr>
-                      <td style="padding: 6px 0; color: #64748b;"><strong>Outgoing Lead:</strong></td>
-                      <td style="padding: 6px 0; color: #0f172a; text-align: right;">${newHistoryItem.outgoingLead}</td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 6px 0; color: #64748b;"><strong>Incoming Counterpart:</strong></td>
-                      <td style="padding: 6px 0; color: #0f172a; text-align: right;">${newHistoryItem.incomingLead}</td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 6px 0; color: #64748b;"><strong>Timestamp:</strong></td>
-                      <td style="padding: 6px 0; color: #0f172a; text-align: right;">${new Date(newHistoryItem.date).toUTCString()}</td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 6px 0; color: #64748b;"><strong>Signed Off By:</strong></td>
-                      <td style="padding: 6px 0; color: #4f46e5; font-weight: bold; text-align: right;">${newHistoryItem.signedOffBy}</td>
-                    </tr>
-                  </table>
-                  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 12px 0;" />
-                  <p style="font-size: 12px; color: #475569; margin: 0; font-style: italic;">
-                    <strong>Transitional Briefing Notes:</strong> "${newHistoryItem.logText}"
-                  </p>
-                </div>
-                <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 24px;">
-                  This is an automated real-world secure transactional alert sent using Express Nodemailer.
-                </p>
-              </div>
-            `
+            recipients: signoffEmailOverride,
+            handover_data: {
+              workspaceName: workspaceName,
+              outgoingLead: newHistoryItem.outgoingLead,
+              incomingLead: newHistoryItem.incomingLead,
+              logText: newHistoryItem.logText,
+              date: newHistoryItem.date,
+              tasksCount: newHistoryItem.tasksCount,
+              backlogCount: newHistoryItem.backlogCount,
+              signedOffBy: newHistoryItem.signedOffBy,
+              tasks: newHistoryItem.tasks,
+              backlog: newHistoryItem.backlog
+            }
           })
         });
         const totalText = await response.text();
