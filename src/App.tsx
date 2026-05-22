@@ -463,12 +463,7 @@ export default function App() {
   const [apiBaseUrl, setApiBaseUrl] = useState<string>(() => {
     const saved = localStorage.getItem("handover_api_base_url");
     if (saved) return saved;
-    // Auto-detect deployment domain
-    const origin = window.location.origin;
-    if (!origin.includes("localhost") && !origin.includes("run.app") && !origin.includes("127.0.0.1")) {
-      return "https://ais-pre-aopq5mxr3yvd5dacnrbmpq-334655952811.europe-west1.run.app";
-    }
-    return "";
+    return "https://handover-mail-api.p5dproject.workers.dev";
   });
 
   const [apiTestStatus, setApiTestStatus] = useState<{ status: "idle" | "testing" | "success" | "error"; message?: string }>({ status: "idle" });
