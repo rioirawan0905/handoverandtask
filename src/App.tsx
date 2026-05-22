@@ -180,47 +180,7 @@ interface HandoverState {
 const CURRENT_DATE_STR = "2026-05-20";
 const CURRENT_DATE_VAL = new Date(CURRENT_DATE_STR);
 
-export const PRESET_MOCK_HANDOVERS: { id: string; title: string; outgoingLead: string; incomingLead: string; date: string; logText: string; tasks: HandoverTask[] }[] = [
-  {
-    id: "preset-1",
-    title: "A-Shift Handover (BOP Stack Pressure Safety Testing)",
-    outgoingLead: "George Vance (Senior Operator)",
-    incomingLead: "Sarah Connor (Rig Manager)",
-    date: "2026-05-19T06:00:00Z",
-    logText: "Completed choke manifold lining, bleed valves balanced. Monitored mud line return viscosity.",
-    tasks: [
-      { id: "p1-t1", description: "Calibrate high-pressure transducer on Mud Pump 2 on Rig Floor", ownerName: "George Vance (Senior Operator)", priority: "High", dueDate: "2026-05-22", completed: false },
-      { id: "p1-t2", description: "Inspect accumulator backup nitrogen charge on BOP stack", ownerName: "Markus Webb (Lead Engineer)", priority: "High", dueDate: "2026-05-23", completed: false },
-      { id: "p1-t3", description: "Run shear rams functional stroke test telemetry diagnostics", ownerName: "Sarah Connor (Rig Manager)", priority: "Medium", dueDate: "2026-05-24", completed: false },
-      { id: "p1-t4", description: "Update main mud logger telemetry feed log files", ownerName: "George Vance (Senior Operator)", priority: "Low", dueDate: "2026-05-25", completed: false }
-    ]
-  },
-  {
-    id: "preset-2",
-    title: "B-Shift Handover (Stage 2 Sidetrack Drill-string Prep)",
-    outgoingLead: "Sarah Connor (Rig Manager)",
-    incomingLead: "Marcus Crane (Drill Superintendent)",
-    date: "2026-05-19T18:00:00Z",
-    logText: "Re-reamed sidetrack section down to 8,400 ft. Standby pressure normal. Driller key files updated.",
-    tasks: [
-      { id: "p2-t1", description: "Verify casing mud weights and fluid viscosity density calculations", ownerName: "Sarah Connor (Rig Manager)", priority: "High", dueDate: "2026-05-21", completed: false },
-      { id: "p2-t2", description: "Test emergency main kill switch safety valves on Powerhouse 4", ownerName: "Markus Webb (Lead Engineer)", priority: "High", dueDate: "2026-05-22", completed: false },
-      { id: "p2-t3", description: "Scribe drilling jar stroke indicators and torque values", ownerName: "George Vance (Senior Operator)", priority: "Medium", dueDate: "2026-05-23", completed: false }
-    ]
-  },
-  {
-    id: "preset-3",
-    title: "C-Shift Handover (Logistics & Wellhead Completion Prep)",
-    outgoingLead: "Marcus Crane (Drill Superintendent)",
-    incomingLead: "George Vance (Senior Operator)",
-    date: "2026-05-20T06:00:00Z",
-    logText: "Casing delivery verified. Supervised rig floor crew safety induction. Heavy lift plans cleared.",
-    tasks: [
-      { id: "p3-t1", description: "Supervise heavy casing string pick-up assembly and slip test", ownerName: "Marcus Crane (Drill Superintendent)", priority: "High", dueDate: "2026-05-22", completed: false },
-      { id: "p3-t2", description: "Check gas chromatograph calibration bottles and line filters", ownerName: "George Vance (Senior Operator)", priority: "Medium", dueDate: "2026-05-23", completed: false }
-    ]
-  }
-];
+export const PRESET_MOCK_HANDOVERS: { id: string; title: string; outgoingLead: string; incomingLead: string; date: string; logText: string; tasks: HandoverTask[] }[] = [];
 
 export const DEFAULT_PERSONNEL: PersonnelItem[] = [
   { id: "p-1", name: "George Vance", title: "Senior Operator" },

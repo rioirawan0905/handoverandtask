@@ -30,7 +30,7 @@ export const UpcomingTasksChart: React.FC<UpcomingTasksChartProps> = ({
   activeTheme,
   referenceDateStr = "2026-05-20",
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const svgContainerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const [dimensions, setDimensions] = useState({ width: 400, height: 260 });
   const [hoveredDay, setHoveredDay] = useState<{
@@ -39,28 +39,36 @@ export const UpcomingTasksChart: React.FC<UpcomingTasksChartProps> = ({
     tasks: HandoverTask[];
   } | null>(null);
 
-  // Measure container dimensions using ResizeObserver for responsive width fitting
+  // Measure container dimensions of the actual chart grid-span using ResizeObserver for responsive width fitting
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!svgContainerRef.current) return;
 
     const resizeObserver = new ResizeObserver((entries) => {
       if (!entries || entries.length === 0) return;
       const { width } = entries[0].contentRect;
-      // Maintain proper responsive scaling bounds
+      // Maintain proper responsive scaling bounds, deducting slight padding buffer for extreme safety
       setDimensions({
-        width: Math.max(width, 280),
-        height: 240,
+        width: Math.max(width - 10, 240),
+        height: 230,
       });
     });
 
-    resizeObserver.observe(containerRef.current);
+    resizeObserver.observe(svgContainerRef.current);
     return () => resizeObserver.disconnect();
   }, []);
 
-  // Compute 7 days starting from reference date
+  // Compute 7 days starting from reference date robustly without fragile split assumptions
   const getNext7Days = () => {
     const datesList = [];
-    const baseDate = new Date(referenceDateStr);
+    const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    // Parse baseline reference safely
+    const parts = referenceDateStr.split("-");
+    const baseDate = parts.length === 3 
+      ? new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10))
+      : new Date(referenceDateStr);
+
     for (let i = 0; i < 7; i++) {
       const nextDate = new Date(baseDate);
       nextDate.setDate(baseDate.getDate() + i);
@@ -70,19 +78,14 @@ export const UpcomingTasksChart: React.FC<UpcomingTasksChartProps> = ({
       const dd = String(nextDate.getDate()).padStart(2, "0");
       const dateStr = `${yyyy}-${mm}-${dd}`;
 
-      // Create human readable labels
-      const formatter = new Intl.DateTimeFormat("en", {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-      });
-      const label = formatter.format(nextDate); // e.g. "Wed, May 20"
+      const dayName = weekdays[nextDate.getDay()];
+      const dayNum = nextDate.getDate();
+      const monthName = months[nextDate.getMonth()];
 
-      datesList.push({ 
-        dateStr, 
-        label, 
-        shortLabel: label.split(",")[0] + " " + label.split(" ")[2] 
-      });
+      const label = `${dayName}, ${monthName} ${dayNum}`; // Web representation (e.g. "Wed, May 20")
+      const shortLabel = `${dayName} ${dayNum}`; // Chart X Axis label (e.g. "Wed 20")
+
+      datesList.push({ dateStr, label, shortLabel });
     }
     return datesList;
   };
@@ -162,7 +165,7 @@ export const UpcomingTasksChart: React.FC<UpcomingTasksChartProps> = ({
         gAxis.select(".domain").remove(); // Remove solid dark line for clean style
         gAxis.selectAll(".tick line").remove(); // Hide tick spikes
         gAxis.selectAll(".tick text")
-          .attr("fill", activeTheme.isDark ? "#64748b" : "#64748b")
+          .attr("fill", activeTheme.isDark ? "#94a3b8" : "#475569")
           .attr("font-size", "9px")
           .attr("font-family", "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace")
           .attr("font-weight", "600")
@@ -177,7 +180,7 @@ export const UpcomingTasksChart: React.FC<UpcomingTasksChartProps> = ({
         gAxis.select(".domain").remove(); // Remove boundary line
         gAxis.selectAll(".tick line").remove(); // Hide tick spikes
         gAxis.selectAll(".tick text")
-          .attr("fill", activeTheme.isDark ? "#64748b" : "#64748b")
+          .attr("fill", activeTheme.isDark ? "#94a3b8" : "#475569")
           .attr("font-size", "9px")
           .attr("font-family", "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace")
           .attr("font-weight", "600")
@@ -271,7 +274,6 @@ export const UpcomingTasksChart: React.FC<UpcomingTasksChartProps> = ({
 
   return (
     <div
-      ref={containerRef}
       className={`${activeTheme.cardBg} border ${activeTheme.cardBorder} rounded-xl p-5 shadow-xs space-y-4`}
     >
       <div className={`border-b ${activeTheme.cardBorder} pb-3 flex items-center justify-between flex-wrap gap-2`}>
@@ -297,7 +299,7 @@ export const UpcomingTasksChart: React.FC<UpcomingTasksChartProps> = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
-        <div className="md:col-span-2 relative flex items-center justify-center">
+        <div ref={svgContainerRef} className="md:col-span-2 relative w-full flex items-center justify-center overflow-hidden">
           <svg
             ref={svgRef}
             width={dimensions.width}
