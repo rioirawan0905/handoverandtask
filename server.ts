@@ -75,14 +75,38 @@ async function startServer() {
       finalSubject = finalSubject || `[HANDOVER REPORT] Shift transition on "${workspace}" by ${signee}`;
       finalTxt = finalTxt || `Shift rotation signed off successfully by ${signee} for space "${workspace}". Transitional brief: ${logText}`;
 
-      const tasksRowsHtml = tasksList.map((t: any) => `
+      const tasksRowsHtml = tasksList.map((t: any) => {
+        const dueDateStr = t.dueDate || "";
+        let dueLabel = "N/A";
+        let dueColor = "#475569";
+        if (dueDateStr) {
+          const due = new Date(dueDateStr);
+          const today = new Date();
+          due.setHours(0,0,0,0);
+          today.setHours(0,0,0,0);
+          const diffTime = due.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          if (diffDays === 0) {
+            dueLabel = `${dueDateStr} (Due Today)`;
+            dueColor = "#d97706"; // Amber
+          } else if (diffDays < 0) {
+            dueLabel = `${dueDateStr} (Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? "s" : ""})`;
+            dueColor = "#dc2626"; // Red
+          } else {
+            dueLabel = `${dueDateStr} (Due in ${diffDays} day${diffDays > 1 ? "s" : ""})`;
+            dueColor = "#2563eb"; // Blue
+          }
+        }
+        return `
         <tr style="border-bottom: 1px solid #f1f5f9;">
           <td style="padding: 8px; color: #334155; text-align: left;">${t.description || t.title || "Untitled Task"}</td>
           <td style="padding: 8px; color: #475569; font-weight: 500; text-align: left;">${t.ownerName || t.assignee || "Unassigned"}</td>
           <td style="padding: 8px; text-align: center;"><span style="padding: 2px 6px; font-size: 11px; font-weight: bold; border-radius: 4px; background-color: ${t.priority === 'High' ? '#fee2e2; color: #991b1b;' : t.priority === 'Medium' ? '#fef3c7; color: #92400e;' : '#f1f5f9; color: #334155;'}">${t.priority || "Low"}</span></td>
+          <td style="padding: 8px; color: ${dueColor}; text-align: center; font-size: 12px; font-family: monospace;">${dueLabel}</td>
           <td style="padding: 8px; color: #64748b; font-size: 12px; text-align: right;">${t.completed ? '✅ Completed' : '⏳ Pending'}</td>
         </tr>
-      `).join('');
+        `;
+      }).join('');
 
       const backlogRowsHtml = backlogList.map((b: any) => `
         <tr style="border-bottom: 1px solid #f1f5f9;">
@@ -141,6 +165,7 @@ async function startServer() {
                   <th style="padding: 8px; text-align: left; color: #64748b;">Description</th>
                   <th style="padding: 8px; text-align: left; color: #64748b;">Assignee</th>
                   <th style="padding: 8px; text-align: center; color: #64748b;">Priority</th>
+                  <th style="padding: 8px; text-align: center; color: #64748b;">Due Date</th>
                   <th style="padding: 8px; text-align: right; color: #64748b;">Status</th>
                 </tr>
               </thead>

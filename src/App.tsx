@@ -355,6 +355,12 @@ export default function App() {
   // Carry Over Tasks modal state
   const [showCarryOverModal, setShowCarryOverModal] = useState(false);
   const [selectedCarryOverTaskIds, setSelectedCarryOverTaskIds] = useState<string[]>([]);
+  const [expandedHistoryIds, setExpandedHistoryIds] = useState<Record<string, boolean>>({});
+
+  // Cross-workspace Carry Over modal state
+  const [showCrossSpaceCarryOverModal, setShowCrossSpaceCarryOverModal] = useState(false);
+  const [selectedCrossSpaceTaskIds, setSelectedCrossSpaceTaskIds] = useState<string[]>([]);
+  const [selectedCrossSpaceId, setSelectedCrossSpaceId] = useState<string>("");
 
   // Authorized Sign-Off confirmation modal state
   const [showSignoffConfirmationModal, setShowSignoffConfirmationModal] = useState(false);
@@ -463,7 +469,12 @@ export default function App() {
   const [apiBaseUrl, setApiBaseUrl] = useState<string>(() => {
     const saved = localStorage.getItem("handover_api_base_url");
     if (saved) return saved;
-    return "https://handover-mail-api.p5dproject.workers.dev";
+    // Auto-detect deployment domain
+    const origin = window.location.origin;
+    if (!origin.includes("localhost") && !origin.includes("run.app") && !origin.includes("127.0.0.1")) {
+      return "https://ais-pre-aopq5mxr3yvd5dacnrbmpq-334655952811.europe-west1.run.app";
+    }
+    return "";
   });
 
   const [apiTestStatus, setApiTestStatus] = useState<{ status: "idle" | "testing" | "success" | "error"; message?: string }>({ status: "idle" });
@@ -2099,7 +2110,28 @@ export default function App() {
               backlogCount: newHistoryItem.backlogCount,
               signed_off_by: newHistoryItem.signedOffBy,
               signedOffBy: newHistoryItem.signedOffBy,
-              tasks_list: newHistoryItem.tasks.map((t: any) => `[${t.completed ? "✓" : " "}] ${t.title} (PIC: ${t.pic || "None"}, Due: ${t.dueDate || "None"})`).join("\n"),
+              tasks_list: newHistoryItem.tasks.map((t: any) => {
+                const titleStr = t.description || t.title || "Untitled Task";
+                const ownerStr = t.ownerName || t.assignee || t.pic || "Unassigned";
+                const dueDateStr = t.dueDate || "";
+                let dueLabel = "No Due Date";
+                if (dueDateStr) {
+                  const due = new Date(dueDateStr);
+                  const today = new Date();
+                  due.setHours(0,0,0,0);
+                  today.setHours(0,0,0,0);
+                  const diffTime = due.getTime() - today.getTime();
+                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                  if (diffDays === 0) {
+                    dueLabel = `Due: ${dueDateStr} (Due Today)`;
+                  } else if (diffDays < 0) {
+                    dueLabel = `Due: ${dueDateStr} (Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? "s" : ""})`;
+                  } else {
+                    dueLabel = `Due: ${dueDateStr} (Due in ${diffDays} day${diffDays > 1 ? "s" : ""})`;
+                  }
+                }
+                return `[${t.completed ? "✓" : " "}] ${titleStr} (Assignee: ${ownerStr}, ${dueLabel})`;
+              }).join("\n"),
               backlog_list: newHistoryItem.backlog.map((b: any) => `[${b.completed ? "✓" : " "}] ${b.title} (PIC: ${b.pic || "None"}, Delay: ${b.delayReason || "None"})`).join("\n")
             }
           };
@@ -2623,6 +2655,185 @@ export default function App() {
                   className="px-3.5 py-1.5 bg-amber-600 text-white hover:bg-amber-750 disabled:opacity-45 disabled:cursor-not-allowed rounded text-xs font-bold shadow-xs transition-colors cursor-pointer font-mono"
                 >
                   Carry Over ({selectedCarryOverTaskIds.length})
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cross-workspace Carry Over Modal */}
+      {showCrossSpaceCarryOverModal && (
+        <div className="fixed inset-0 bg-slate-900/55 backdrop-blur-xs flex items-center justify-center z-50 p-4 transition-all duration-200">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden p-5 flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150 text-slate-850">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+              <h3 className="font-bold text-slate-900 font-display flex items-center gap-2 text-sm uppercase tracking-tight">
+                <Copy className="w-4 h-4 text-indigo-500" />
+                Carry Over from other Handover Space
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowCrossSpaceCarryOverModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-xs font-mono p-1 rounded-full hover:bg-slate-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 leading-normal mb-3 text-left">
+              Select an alternative operational handover space, view its current active tasks, and select which ones you want to import/carry over into your active space cycle.
+            </p>
+
+            {/* Space Selector list */}
+            <div className="mb-3.5 space-y-1 text-left">
+              <label className="text-[10px] uppercase font-mono font-bold text-slate-500">Select Source Handover Space:</label>
+              <select
+                value={selectedCrossSpaceId}
+                onChange={(e) => {
+                  setSelectedCrossSpaceId(e.target.value);
+                  setSelectedCrossSpaceTaskIds([]);
+                }}
+                className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-xs font-sans font-semibold text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                {workspaces
+                  .filter(w => w.id !== currentSelectedWorkspaceId)
+                  .map(w => (
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
+                  ))
+                }
+                {workspaces.filter(w => w.id !== currentSelectedWorkspaceId).length === 0 && (
+                  <option value="">No other workspaces available</option>
+                )}
+              </select>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1 border border-slate-100 rounded-lg p-3 bg-slate-50/50">
+              {(() => {
+                if (!selectedCrossSpaceId) {
+                  return (
+                    <div className="p-8 text-center text-xs text-slate-450 italic">
+                      Please select another space to view tasks.
+                    </div>
+                  );
+                }
+
+                const otherSpaceData = allWorkspacesData[selectedCrossSpaceId];
+                const otherSpaceTasks = otherSpaceData?.tasks || [];
+
+                if (otherSpaceTasks.length === 0) {
+                  return (
+                    <div className="p-8 text-center text-xs text-slate-450 italic">
+                      No active tasks found in the selected space.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2.5">
+                    {otherSpaceTasks.map((t) => {
+                      const isSelected = selectedCrossSpaceTaskIds.includes(t.id);
+                      return (
+                        <div 
+                          key={t.id}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedCrossSpaceTaskIds(prev => prev.filter(id => id !== t.id));
+                            } else {
+                              setSelectedCrossSpaceTaskIds(prev => [...prev, t.id]);
+                            }
+                          }}
+                          className={`p-3 rounded-lg border text-left cursor-pointer transition-all flex items-start gap-3 select-none ${
+                            isSelected 
+                              ? "bg-indigo-55/40 border-indigo-400/40 shadow-2xs" 
+                              : "bg-white border-slate-200 hover:border-slate-350"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}} 
+                            className="mt-1 rounded border-slate-300 text-indigo-650 focus:ring-indigo-500 cursor-pointer w-4 h-4 shrink-0"
+                          />
+                          <div className="flex-1 space-y-1">
+                            <p className={`text-xs font-semibold ${isSelected ? "text-indigo-950" : "text-slate-800"}`}>
+                              {t.description}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2 text-[9px] text-slate-500 font-mono">
+                              <span className="px-1 py-0.2 rounded bg-slate-100 border border-slate-200">Owner: {t.ownerName}</span>
+                              <span className={`px-1 py-0.2 rounded ${t.priority === 'High' ? 'bg-rose-50 text-rose-500' : 'bg-slate-100'}`}>{t.priority}</span>
+                              {t.dueDate && (
+                                <span className="text-slate-400">Due: {t.dueDate}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-100 mt-4">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={!selectedCrossSpaceId || !(allWorkspacesData[selectedCrossSpaceId]?.tasks?.length)}
+                  onClick={() => {
+                    const otherSpaceTasks = allWorkspacesData[selectedCrossSpaceId]?.tasks || [];
+                    setSelectedCrossSpaceTaskIds(otherSpaceTasks.map(t => t.id));
+                  }}
+                  className="text-[10px] text-slate-650 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-2 py-1 rounded font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Select All
+                </button>
+                <button
+                  type="button"
+                  disabled={!selectedCrossSpaceId || !(allWorkspacesData[selectedCrossSpaceId]?.tasks?.length)}
+                  onClick={() => setSelectedCrossSpaceTaskIds([])}
+                  className="text-[10px] text-slate-650 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-2 py-1 rounded font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Clear All
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCrossSpaceCarryOverModal(false)}
+                  className="px-3.5 py-1.5 border border-slate-200 hover:bg-slate-50 rounded text-slate-600 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={selectedCrossSpaceTaskIds.length === 0 || !selectedCrossSpaceId}
+                  onClick={() => {
+                    const otherSpaceTasks = allWorkspacesData[selectedCrossSpaceId]?.tasks || [];
+                    const tasksToClone = otherSpaceTasks.filter(t => selectedCrossSpaceTaskIds.includes(t.id));
+
+                    if (tasksToClone.length === 0) return;
+
+                    const clonedTasks: HandoverTask[] = tasksToClone.map(t => ({
+                      ...t,
+                      id: `task-cross-${Date.now()}-${Math.random()}`,
+                      completed: false
+                    }));
+
+                    updateWorkspaceState((prev) => ({
+                      ...prev,
+                      tasks: [...prev.tasks, ...clonedTasks]
+                    }));
+
+                    const sourceSpaceName = workspaces.find(w => w.id === selectedCrossSpaceId)?.name || "Another Space";
+                    addNotification(`Imported & carried over ${clonedTasks.length} tasks from "${sourceSpaceName}"!`, "success");
+                    setShowCrossSpaceCarryOverModal(false);
+                  }}
+                  className="px-3.5 py-1.5 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-45 disabled:cursor-not-allowed rounded text-xs font-bold shadow-xs transition-colors cursor-pointer font-mono"
+                >
+                  Carry Over ({selectedCrossSpaceTaskIds.length})
                 </button>
               </div>
             </div>
@@ -3447,10 +3658,10 @@ service cloud.firestore {
                           type="button"
                           onClick={handleTestApiConnection}
                           disabled={apiTestStatus.status === "testing"}
-                          className={`px-3 py-1.5 text-white rounded text-xs font-bold shadow-xs transition-all active:scale-98 cursor-pointer ${
+                          className={`px-4 py-1.5 text-white rounded text-xs font-extrabold shadow-md transition-all hover:scale-[1.03] active:scale-97 cursor-pointer border border-orange-500 ${
                             apiTestStatus.status === "testing" 
-                              ? "bg-slate-400 cursor-not-allowed" 
-                              : "bg-indigo-650 hover:bg-indigo-700"
+                              ? "bg-slate-400 cursor-not-allowed border-slate-400" 
+                              : "bg-orange-600 hover:bg-orange-500 shadow-orange-100/50 hover:shadow-lg hover:shadow-orange-200/50"
                           }`}
                         >
                           {apiTestStatus.status === "testing" ? "Testing..." : "Test Connection"}
@@ -4256,20 +4467,40 @@ service cloud.firestore {
                 <div className="flex items-center gap-2">
                   <span className={`w-1.5 h-4 ${activeTheme.id === 'alpine-forest' ? 'bg-emerald-600' : 'bg-indigo-600'} rounded-full shrink-0 animate-pulse bg-indigo-505`}></span>
                   <div>
-                    <h3 className={`text-sm font-bold font-display ${activeTheme.cardTitleText} flex flex-col sm:flex-row sm:items-center gap-2`}>
+                    <h3 className={`text-sm font-bold font-display ${activeTheme.cardTitleText} flex flex-col xl:flex-row xl:items-center gap-2`}>
                       <span>Active Handover Cycle Tasks</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedCarryOverTaskIds([]);
-                          setShowCarryOverModal(true);
-                        }}
-                        className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 hover:scale-[1.02] active:scale-[0.98] text-white rounded text-[10px] font-bold font-mono inline-flex items-center gap-1 shadow-2xs transition-all cursor-pointer"
-                        title="Import and carry over tasks from any historical registered handover"
-                      >
-                        <Copy className="w-2.5 h-2.5" />
-                        Carry Over Past Tasks
-                      </button>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCarryOverTaskIds([]);
+                            setShowCarryOverModal(true);
+                          }}
+                          className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 hover:scale-[1.02] active:scale-[0.98] text-white rounded text-[10px] font-bold font-mono inline-flex items-center gap-1 shadow-2xs transition-all cursor-pointer"
+                          title="Import and carry over tasks from any historical registered handover"
+                        >
+                          <Copy className="w-2.5 h-2.5" />
+                          Carry Over Past Tasks
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCrossSpaceTaskIds([]);
+                            const otherSpaces = workspaces.filter(w => w.id !== currentSelectedWorkspaceId);
+                            if (otherSpaces.length > 0) {
+                              setSelectedCrossSpaceId(otherSpaces[0].id);
+                            } else {
+                              setSelectedCrossSpaceId("");
+                            }
+                            setShowCrossSpaceCarryOverModal(true);
+                          }}
+                          className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.02] active:scale-[0.98] text-white rounded text-[10px] font-bold font-mono inline-flex items-center gap-1 shadow-2xs transition-all cursor-pointer"
+                          title="Import and carry over tasks from another active handover space"
+                        >
+                          <Copy className="w-2.5 h-2.5" />
+                          Carry Over from other Handover
+                        </button>
+                      </div>
                     </h3>
                     <p className={`text-[11px] ${activeTheme.cardSubText} leading-none mt-1.5 sm:mt-1`}>
                       Critical tasks verified and actioned during the active transition window.
@@ -5229,9 +5460,76 @@ service cloud.firestore {
                           &quot;{record.logText}&quot;
                         </div>
 
-                        <div className={`flex items-center justify-between text-[9px] ${activeTheme.cardSubText} font-mono leading-none border-t ${activeTheme.cardBorder} pt-2`}>
-                          <span>Report: {record.tasksCount} Tasks • {record.backlogCount} Backlog</span>
-                          <span className="font-sans">Lead: <strong>{record.signedOffBy}</strong></span>
+                        <div className={`flex flex-col gap-2 border-t ${activeTheme.cardBorder} pt-2`}>
+                          <div 
+                            onClick={() => {
+                              setExpandedHistoryIds(prev => ({
+                                ...prev,
+                                [record.id]: !prev[record.id]
+                              }));
+                            }}
+                            className={`flex items-center justify-between text-[9px] ${activeTheme.cardSubText} font-mono leading-none cursor-pointer hover:text-indigo-500 transition-colors select-none`}
+                          >
+                            <span className="flex items-center gap-1 font-bold">
+                              <span>Report: {record.tasksCount} Tasks • {record.backlogCount} Backlog</span>
+                              <span className="px-1 py-0.2 rounded bg-slate-200 dark:bg-slate-800 text-[8px] hover:bg-slate-300 dark:hover:bg-slate-700">
+                                {expandedHistoryIds[record.id] ? "▲ Hide Tasks" : "▼ Show Tasks"}
+                              </span>
+                            </span>
+                            <span className="font-sans text-[10px]">Lead: <strong>{record.signedOffBy}</strong></span>
+                          </div>
+
+                          {expandedHistoryIds[record.id] && (
+                            <div className="text-[10px] space-y-2 mt-1 bg-slate-100/60 dark:bg-slate-900/40 p-2.5 rounded border border-dashed border-slate-200 dark:border-slate-800 animate-in slide-in-from-top-1 text-left">
+                              {/* Tasks List */}
+                              <div>
+                                <h4 className="font-bold text-[9px] uppercase tracking-wider text-slate-500 mb-1 flex items-center gap-1">
+                                  <span>🎯</span>
+                                  <span>Shift Tasks ({record.tasksCount})</span>
+                                </h4>
+                                {(!record.tasks || record.tasks.length === 0) ? (
+                                  <p className="text-[9px] italic text-slate-400 pl-1">No tasks in this rotation</p>
+                                ) : (
+                                  <ul className="space-y-1.5 pl-1">
+                                    {record.tasks.map((t, index) => (
+                                      <li key={t.id || index} className="flex items-start gap-1 border-b border-slate-200/40 dark:border-slate-800/40 pb-1 last:border-0 last:pb-0">
+                                        <span className="shrink-0">{t.completed ? "✅" : "⏳"}</span>
+                                        <span className={`leading-snug ${t.completed ? "line-through opacity-60" : ""}`}>
+                                          <strong>{t.description || t.title}</strong>{' '}
+                                          <span className="text-[8px] font-mono text-slate-400">({t.priority}, PIC: {t.ownerName})</span>
+                                          {t.dueDate && <span className="text-[8px] font-mono text-indigo-500 ml-1 bg-indigo-50/50 dark:bg-indigo-950/30 px-1 rounded">Due: {t.dueDate}</span>}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+
+                              {/* Backlog List */}
+                              <div className="pt-2 border-t border-slate-200/50 dark:border-slate-800/50">
+                                <h4 className="font-bold text-[9px] uppercase tracking-wider text-slate-500 mb-1 flex items-center gap-1">
+                                  <span>📦</span>
+                                  <span>Backlogs ({record.backlogCount})</span>
+                                </h4>
+                                {(!record.backlog || record.backlog.length === 0) ? (
+                                  <p className="text-[9px] italic text-slate-400 pl-1">No backlogs in this rotation</p>
+                                ) : (
+                                  <ul className="space-y-1.5 pl-1">
+                                    {record.backlog.map((b, index) => (
+                                      <li key={b.id || index} className="flex items-start gap-1 border-b border-slate-200/40 dark:border-slate-800/40 pb-1 last:border-0 last:pb-0">
+                                        <span className="shrink-0 opacity-75">📦</span>
+                                        <span className="leading-snug">
+                                          <strong>{b.description || b.title}</strong>{' '}
+                                          <span className="text-[8px] font-mono text-slate-400">(PIC: {b.ownerName})</span>
+                                          {b.delayReason && <span className="text-[8px] italic text-rose-500 ml-1 bg-rose-50/50 dark:bg-rose-950/30 px-1 rounded">Delay: {b.delayReason}</span>}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
