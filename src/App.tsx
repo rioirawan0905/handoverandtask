@@ -27,7 +27,10 @@ import {
   Bell,
   BellRing,
   Settings,
-  GripVertical
+  GripVertical,
+  Download,
+  FileText,
+  Printer
 } from "lucide-react";
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
@@ -5181,12 +5184,12 @@ service cloud.firestore {
               <div className={`p-4 ${activeTheme.mutedBg}`}>
                 
                 {/* Handover Operations Toolbar (Search, Filter, Export Actions) */}
-                <div className="mb-4 p-3 rounded-lg border border-slate-200/50 dark:border-slate-800/40 bg-white/60 dark:bg-slate-900/60 flex flex-col xl:flex-row items-center justify-between gap-4">
+                <div className="mb-4 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 shadow-3xs">
                   {/* Search & Filter Group */}
-                  <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
                     {/* Search Description/PIC */}
                     <div className="relative w-full sm:w-64">
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 opacity-60 pointer-events-none text-xs">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 opacity-70 pointer-events-none text-xs">
                         🔍
                       </span>
                       <input
@@ -5199,7 +5202,7 @@ service cloud.firestore {
                       {taskSearchQuery && (
                         <button
                           onClick={() => setTaskSearchQuery("")}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-605 font-bold text-xs"
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 font-bold text-xs"
                           type="button"
                         >
                           ×
@@ -5207,55 +5210,62 @@ service cloud.firestore {
                       )}
                     </div>
 
-                    {/* Priority Filter */}
-                    <div className="flex items-center gap-1.5 w-full sm:w-auto">
-                      <span className={`text-[11px] font-mono ${activeTheme.cardSubText} shrink-0`}>Priority:</span>
-                      <select
-                        value={taskPriorityFilter}
-                        onChange={(e) => setTaskPriorityFilter(e.target.value as any)}
-                        className={`text-xs px-2 px-y py-1 rounded-md border ${activeTheme.cardBorder} ${activeTheme.cardBg} ${activeTheme.cardTitleText} cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-indigo-500`}
-                      >
-                        <option value="All">All Priorities</option>
-                        <option value="High">🔴 High</option>
-                        <option value="Medium">🟡 Medium</option>
-                        <option value="Low">🟢 Low</option>
-                      </select>
-                    </div>
+                    {/* Filter Elements - Side by Side on Mobile */}
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                      {/* Priority Filter */}
+                      <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
+                        <span className={`text-[10px] font-mono uppercase tracking-wider ${activeTheme.cardSubText} shrink-0`}>Priority:</span>
+                        <select
+                          value={taskPriorityFilter}
+                          onChange={(e) => setTaskPriorityFilter(e.target.value as any)}
+                          className={`text-xs px-2 py-1 w-full rounded-md border ${activeTheme.cardBorder} ${activeTheme.cardBg} ${activeTheme.cardTitleText} cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-indigo-500`}
+                        >
+                          <option value="All">All Priorities</option>
+                          <option value="High">🔴 High</option>
+                          <option value="Medium">🟡 Medium</option>
+                          <option value="Low">🟢 Low</option>
+                        </select>
+                      </div>
 
-                    {/* Status Filter */}
-                    <div className="flex items-center gap-1.5 w-full sm:w-auto">
-                      <span className={`text-[11px] font-mono ${activeTheme.cardSubText} shrink-0`}>Status:</span>
-                      <select
-                        value={taskStatusFilter}
-                        onChange={(e) => setTaskStatusFilter(e.target.value as any)}
-                        className={`text-xs px-2 py-1 rounded-md border ${activeTheme.cardBorder} ${activeTheme.cardBg} ${activeTheme.cardTitleText} cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-indigo-500`}
-                      >
-                        <option value="All">All Statuses</option>
-                        <option value="Active">Pending</option>
-                        <option value="Completed">Sign-Off</option>
-                      </select>
+                      {/* Status Filter */}
+                      <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
+                        <span className={`text-[10px] font-mono uppercase tracking-wider ${activeTheme.cardSubText} shrink-0`}>Status:</span>
+                        <select
+                          value={taskStatusFilter}
+                          onChange={(e) => setTaskStatusFilter(e.target.value as any)}
+                          className={`text-xs px-2 py-1 w-full rounded-md border ${activeTheme.cardBorder} ${activeTheme.cardBg} ${activeTheme.cardTitleText} cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-indigo-500`}
+                        >
+                          <option value="All">All Statuses</option>
+                          <option value="Active">Pending</option>
+                          <option value="Completed">Sign-Off</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
 
                   {/* Export Toolkit */}
-                  <div className="flex items-center gap-2.5 w-full xl:w-auto justify-end border-t xl:border-t-0 border-slate-205/30 dark:border-slate-800/20 pt-3 xl:pt-0">
-                    <span className={`text-[11px] font-mono ${activeTheme.cardSubText}`}>Export Sheet:</span>
-                    <button
-                      type="button"
-                      onClick={handleExportCSV}
-                      className="px-3 py-1.5 hover:scale-[1.01] active:scale-[0.99] bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-slate-300 border border-slate-300/60 dark:border-slate-700 rounded-lg text-xs font-bold font-mono flex items-center gap-1.5 shadow-3xs transition-all cursor-pointer"
-                      title="Export all cycle and backlog tasks to generic CSV spreadsheet"
-                    >
-                      <span>📥</span> CSV File
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleExportPDF}
-                      className="px-3 py-1.5 hover:scale-[1.01] active:scale-[0.99] bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold font-mono flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
-                      title="Generate executive PDF document using browser high-fidelity engine"
-                    >
-                      <span>📄</span> PDF Report
-                    </button>
+                  <div className="flex items-center gap-2.5 w-full lg:w-auto justify-end border-t lg:border-t-0 border-slate-200/30 dark:border-slate-800/20 pt-3 lg:pt-0">
+                    <span className={`text-[10px] font-mono uppercase tracking-wider ${activeTheme.cardSubText} hidden sm:inline`}>Export:</span>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={handleExportCSV}
+                        className="flex-1 sm:flex-none px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-slate-300 border border-slate-350/60 dark:border-slate-700 rounded-lg text-xs font-semibold font-mono flex items-center justify-center gap-1.5 shadow-3xs transition-all cursor-pointer"
+                        title="Export all cycle and backlog tasks to generic CSV spreadsheet"
+                      >
+                        <Download className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                        <span>CSV Sheet</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleExportPDF}
+                        className="flex-1 sm:flex-none px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold font-mono flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                        title="Generate executive PDF document using browser high-fidelity engine"
+                      >
+                        <Printer className="w-3.5 h-3.5 shrink-0 opacity-95" />
+                        <span>PDF Report</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
