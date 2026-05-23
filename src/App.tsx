@@ -5263,7 +5263,7 @@ service cloud.firestore {
                                   <table className={`w-full text-left text-xs ${activeTheme.cardBg} border-collapse`}>
                     <thead>
                       <tr className={`${activeTheme.mutedBg} ${activeTheme.cardSubText} border-b ${activeTheme.cardBorder} font-mono text-[10px] uppercase font-bold select-none`}>
-                        <th className="p-3 w-8 text-center text-slate-400">Drag</th>
+                        <th className="p-3 w-8 text-center text-slate-400 hidden sm:table-cell">Drag</th>
                         <th className={`p-3 w-16 text-center cursor-pointer hover:opacity-85 transition-opacity ${activeTheme.cardBorder}`} onClick={() => handleTasksSort("completed")}>
                           <div className="flex items-center justify-center gap-0.5">
                             Done {renderSortIcon("completed", tasksSortField, tasksSortDirection)}
@@ -5274,17 +5274,17 @@ service cloud.firestore {
                             Task Description {renderSortIcon("description", tasksSortField, tasksSortDirection)}
                           </div>
                         </th>
-                        <th className="p-3 w-28 text-center cursor-pointer hover:opacity-85 transition-opacity" onClick={() => handleTasksSort("ownerName")}>
+                        <th className="p-3 w-28 text-center cursor-pointer hover:opacity-85 transition-opacity hidden sm:table-cell" onClick={() => handleTasksSort("ownerName")}>
                           <div className="flex items-center justify-center gap-0.5">
                             Owner {renderSortIcon("ownerName", tasksSortField, tasksSortDirection)}
                           </div>
                         </th>
-                        <th className="p-3 w-24 text-center cursor-pointer hover:opacity-85 transition-opacity" onClick={() => handleTasksSort("priority")}>
+                        <th className="p-3 w-24 text-center cursor-pointer hover:opacity-85 transition-opacity hidden sm:table-cell" onClick={() => handleTasksSort("priority")}>
                           <div className="flex items-center justify-center gap-0.5">
                             Priority {renderSortIcon("priority", tasksSortField, tasksSortDirection)}
                           </div>
                         </th>
-                        <th className="p-3 w-32 text-center cursor-pointer hover:opacity-85 transition-opacity" onClick={() => handleTasksSort("dueDate")}>
+                        <th className="p-3 w-32 text-center cursor-pointer hover:opacity-85 transition-opacity hidden sm:table-cell" onClick={() => handleTasksSort("dueDate")}>
                           <div className="flex items-center justify-center gap-0.5">
                             Countdown {renderSortIcon("dueDate", tasksSortField, tasksSortDirection)}
                           </div>
@@ -5296,7 +5296,7 @@ service cloud.firestore {
                       {getSortedTasks().length === 0 ? (
                         <tr>
                           <td colSpan={7} className={`p-8 text-center ${activeTheme.cardSubText} ${activeTheme.mutedBg}`}>
-                            <CheckCircle2 className="w-8 h-8 mx-auto text-slate-350 mb-2 opacity-60" />
+                            <CheckCircle2 className="w-8 h-8 mx-auto text-slate-355 mb-2 opacity-60" />
                             <p className="font-semibold text-xs">No active tasks in current rotation.</p>
                             <p className="text-[10px] opacity-75 mt-0.5">Use the prompt box beneath to queue transition tasks.</p>
                           </td>
@@ -5317,10 +5317,10 @@ service cloud.firestore {
                                   ? "opacity-35 bg-indigo-500/10 cursor-grabbing" 
                                   : "hover:bg-slate-500/5"
                               } ${
-                                task.completed ? "bg-emerald-500/5 text-slate-405 opacity-80" : ""
+                                task.completed ? "bg-emerald-500/5 text-slate-400 opacity-80" : ""
                               } ${activeTheme.mutedBg}/10 border-b ${activeTheme.cardBorder}`}
                             >
-                              <td className="p-3 text-center align-middle touch-none select-none">
+                              <td className="p-3 text-center align-middle touch-none select-none hidden sm:table-cell">
                                 <div className="flex items-center justify-center text-slate-400 dark:text-slate-600 hover:text-indigo-500 cursor-grab active:cursor-grabbing">
                                   <GripVertical className="w-4 h-4" />
                                 </div>
@@ -5342,25 +5342,57 @@ service cloud.firestore {
                                     {task.completed ? (
                                       <CheckSquare className="w-5 h-5 text-emerald-600 fill-emerald-500/10" />
                                     ) : (
-                                      <Square className="w-5 h-5 text-slate-305" />
+                                      <Square className="w-5 h-5 text-slate-300" />
                                     )}
                                   </motion.div>
                                 </motion.button>
                               </td>
 
                               <td className="p-3 font-medium leading-relaxed">
-                                <span className={task.completed ? "line-through text-slate-400" : activeTheme.cardTitleText}>
-                                  {task.description}
-                                </span>
+                                <div className="flex flex-col gap-1">
+                                  <span className={task.completed ? "line-through text-slate-400" : activeTheme.cardTitleText}>
+                                    {task.description}
+                                  </span>
+                                  {/* Mobile-only tags for optimized layout */}
+                                  <div className="flex flex-wrap gap-1.5 items-center mt-1 sm:hidden">
+                                    <span className="px-1.5 py-0.5 font-semibold rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-600 dark:text-slate-400 text-[9px] uppercase tracking-wider">
+                                      👤 {task.ownerName}
+                                    </span>
+                                    <span className={`px-1.5 py-0.5 font-bold rounded text-[9px] uppercase tracking-wider ${
+                                      task.priority === "High" 
+                                        ? "bg-rose-500/10 text-rose-500 border border-rose-500/20" 
+                                        : task.priority === "Medium"
+                                        ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                                        : "bg-slate-100 dark:bg-slate-800 text-slate-500 text-[9px]"
+                                    }`}>
+                                      {task.priority}
+                                    </span>
+                                    {task.completed ? (
+                                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 uppercase font-mono">
+                                        Signed Off
+                                      </span>
+                                    ) : (
+                                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[9px] font-mono font-bold border ${
+                                        countdown.isOverdue 
+                                          ? "bg-rose-500/10 text-rose-500 border-rose-500/20 animate-pulse" 
+                                          : countdown.isToday
+                                          ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                                          : `${activeTheme.mutedBg} ${activeTheme.cardTitleText} ${activeTheme.cardBorder}`
+                                      }`}>
+                                        ⏳ {countdown.text}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               </td>
 
-                              <td className="p-3 text-center">
+                              <td className="p-3 text-center hidden sm:table-cell">
                                 <span className={`px-2 py-0.5 ${activeTheme.mutedBg} border ${activeTheme.cardBorder} ${activeTheme.cardSubText} font-semibold rounded-full text-[10px]`}>
                                   {task.ownerName}
                                 </span>
                               </td>
 
-                              <td className="p-3 text-center">
+                              <td className="p-3 text-center hidden sm:table-cell">
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wide ${
                                   task.priority === "High" 
                                     ? "bg-rose-500/10 text-rose-500 border-rose-500/20" 
@@ -5372,7 +5404,7 @@ service cloud.firestore {
                                 </span>
                               </td>
 
-                              <td className="p-3 text-center">
+                              <td className="p-3 text-center hidden sm:table-cell">
                                 <div className="flex flex-col items-center gap-1">
                                   {task.completed ? (
                                     <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 uppercase font-mono">
@@ -5386,7 +5418,7 @@ service cloud.firestore {
                                         ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
                                         : `${activeTheme.mutedBg} ${activeTheme.cardTitleText} ${activeTheme.cardBorder}`
                                     }`}>
-                                      <Clock className="w-3 h-3 text-slate-400" />
+                                      <Clock className="w-3 h-3 text-slate-405" />
                                       {countdown.text}
                                     </span>
                                   )}
@@ -5398,16 +5430,17 @@ service cloud.firestore {
 
                               <td className="p-3 text-center">
                                 <button
+                                  type="button"
                                   onClick={() => setDeleteConfirmation({
                                     isOpen: true,
                                     type: "task",
                                     id: task.id,
                                     name: task.description
                                   })}
-                                  className="text-slate-350 hover:text-rose-550 rounded transition-colors"
+                                  className="text-slate-350 hover:text-rose-550 rounded transition-colors cursor-pointer"
                                   title="Remove Task"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5 hover:text-rose-500" />
+                                  <Trash2 className="w-3.5 h-3.5 hover:text-rose-550" />
                                 </button>
                               </td>
                             </tr>
@@ -5533,17 +5566,17 @@ service cloud.firestore {
                             Backlog Task Description {renderSortIcon("description", backlogSortField, backlogSortDirection)}
                           </div>
                         </th>
-                        <th className="p-3 w-28 text-center cursor-pointer hover:opacity-85 transition-opacity" onClick={() => handleBacklogSort("ownerName")}>
+                        <th className="p-3 w-28 text-center cursor-pointer hover:opacity-85 transition-opacity hidden sm:table-cell" onClick={() => handleBacklogSort("ownerName")}>
                           <div className="flex items-center justify-center gap-0.5">
                             Owner {renderSortIcon("ownerName", backlogSortField, backlogSortDirection)}
                           </div>
                         </th>
-                        <th className="p-3 w-24 text-center cursor-pointer hover:opacity-85 transition-opacity" onClick={() => handleBacklogSort("priority")}>
+                        <th className="p-3 w-24 text-center cursor-pointer hover:opacity-85 transition-opacity hidden sm:table-cell" onClick={() => handleBacklogSort("priority")}>
                           <div className="flex items-center justify-center gap-0.5">
                             Priority {renderSortIcon("priority", backlogSortField, backlogSortDirection)}
                           </div>
                         </th>
-                        <th className="p-3 w-36 text-center cursor-pointer hover:opacity-85 transition-opacity" onClick={() => handleBacklogSort("backlogDate")}>
+                        <th className="p-3 w-36 text-center cursor-pointer hover:opacity-85 transition-opacity hidden sm:table-cell" onClick={() => handleBacklogSort("backlogDate")}>
                           <div className="flex items-center justify-center gap-0.5">
                             Aging Days {renderSortIcon("backlogDate", backlogSortField, backlogSortDirection)}
                           </div>
@@ -5587,25 +5620,57 @@ service cloud.firestore {
                                     {item.completed ? (
                                       <CheckSquare className="w-5 h-5 text-emerald-600 fill-emerald-500/10" />
                                     ) : (
-                                      <Square className="w-5 h-5 text-slate-305" />
+                                      <Square className="w-5 h-5 text-slate-300" />
                                     )}
                                   </motion.div>
                                 </motion.button>
                               </td>
 
                               <td className="p-3 font-medium leading-relaxed">
-                                <span className={item.completed ? "line-through text-slate-400" : activeTheme.cardTitleText}>
-                                  {item.description}
-                                </span>
+                                <div className="flex flex-col gap-1">
+                                  <span className={item.completed ? "line-through text-slate-400" : activeTheme.cardTitleText}>
+                                    {item.description}
+                                  </span>
+                                  {/* Mobile-only tags for optimized layout */}
+                                  <div className="flex flex-wrap gap-1.5 items-center mt-1 sm:hidden">
+                                    <span className="px-1.5 py-0.5 font-semibold rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-600 dark:text-slate-400 text-[9px] uppercase tracking-wider">
+                                      👤 {item.ownerName}
+                                    </span>
+                                    <span className={`px-1.5 py-0.5 font-bold rounded text-[9px] uppercase tracking-wider ${
+                                      item.priority === "High" 
+                                        ? "bg-rose-500/10 text-rose-500 border border-rose-500/20" 
+                                        : item.priority === "Medium"
+                                        ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                                        : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                                    }`}>
+                                      {item.priority}
+                                    </span>
+                                    {item.completed ? (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded text-[9px] uppercase font-mono">
+                                        Signed Off
+                                      </span>
+                                    ) : (
+                                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-mono font-bold border ${
+                                        agingDays >= 20 
+                                          ? "bg-rose-500/10 text-rose-500 border border-rose-500/20 animate-pulse" 
+                                          : agingDays >= 10
+                                          ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                                          : `${activeTheme.mutedBg} ${activeTheme.cardSubText} ${activeTheme.cardBorder}`
+                                      }`}>
+                                        🕒 {agingDays} days aging
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               </td>
 
-                              <td className="p-3 text-center">
+                              <td className="p-3 text-center hidden sm:table-cell">
                                 <span className={`px-2 py-0.5 ${activeTheme.mutedBg} border ${activeTheme.cardBorder} ${activeTheme.cardSubText} font-semibold rounded-full text-[10px]`}>
                                   {item.ownerName}
                                 </span>
                               </td>
 
-                              <td className="p-3 text-center">
+                              <td className="p-3 text-center hidden sm:table-cell">
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wide ${
                                   item.priority === "High" 
                                     ? "bg-rose-500/10 text-rose-500 border-rose-500/20" 
@@ -5617,9 +5682,9 @@ service cloud.firestore {
                                 </span>
                               </td>
 
-                              <td className="p-3 text-center">
+                              <td className="p-3 text-center hidden sm:table-cell">
                                 {item.completed ? (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 font-bold bg-emerald-500/10 text-emerald-550 text-emerald-600 border border-emerald-500/20 rounded text-[10px] uppercase font-mono">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded text-[10px] uppercase font-mono">
                                     Signed Off
                                   </span>
                                 ) : (
@@ -5639,6 +5704,7 @@ service cloud.firestore {
                                 <div className="flex items-center justify-center gap-1">
                                   {!item.completed && (
                                     <button
+                                      type="button"
                                       onClick={() => handlePromoteBacklog(item.id)}
                                       className="px-2 py-1 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20 text-[10px] rounded font-semibold inline-flex items-center gap-0.5 transition-colors cursor-pointer"
                                       title="Move this task to active rotation due today."
@@ -5648,16 +5714,17 @@ service cloud.firestore {
                                     </button>
                                   )}
                                   <button
+                                    type="button"
                                     onClick={() => setDeleteConfirmation({
                                       isOpen: true,
                                       type: "backlog",
                                       id: item.id,
                                       name: item.description
                                     })}
-                                    className="text-slate-350 hover:text-rose-550 rounded transition-colors"
+                                    className="text-slate-350 hover:text-rose-550 rounded transition-colors cursor-pointer"
                                     title="Remove Backlog Item"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5 hover:text-rose-500" />
+                                    <Trash2 className="w-3.5 h-3.5 hover:text-rose-550" />
                                   </button>
                                 </div>
                               </td>
