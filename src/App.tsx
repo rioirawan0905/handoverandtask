@@ -714,6 +714,11 @@ export default function App() {
   const [tasksSortDirection, setTasksSortDirection] = useState<"asc" | "desc">("asc");
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
 
+  // Task search and filter states
+  const [taskSearchQuery, setTaskSearchQuery] = useState("");
+  const [taskPriorityFilter, setTaskPriorityFilter] = useState<"All" | "High" | "Medium" | "Low">("All");
+  const [taskStatusFilter, setTaskStatusFilter] = useState<"All" | "Active" | "Completed">("All");
+
   const [backlogSortField, setBacklogSortField] = useState<"completed" | "description" | "ownerName" | "priority" | "backlogDate" | null>(null);
   const [backlogSortDirection, setBacklogSortDirection] = useState<"asc" | "desc">("asc");
   
@@ -1970,8 +1975,34 @@ export default function App() {
   };
 
   const getSortedTasks = () => {
-    if (!tasksSortField) return dbState.tasks;
-    return [...dbState.tasks].sort((a, b) => {
+    let filtered = [...dbState.tasks];
+
+    // Apply search filter (match description or ownerName)
+    if (taskSearchQuery.trim() !== "") {
+      const q = taskSearchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (t) =>
+          (t.description && t.description.toLowerCase().includes(q)) ||
+          (t.ownerName && t.ownerName.toLowerCase().includes(q))
+      );
+    }
+
+    // Apply priority filter
+    if (taskPriorityFilter !== "All") {
+      filtered = filtered.filter((t) => t.priority === taskPriorityFilter);
+    }
+
+    // Apply status filter
+    if (taskStatusFilter !== "All") {
+      if (taskStatusFilter === "Completed") {
+        filtered = filtered.filter((t) => t.completed);
+      } else if (taskStatusFilter === "Active") {
+        filtered = filtered.filter((t) => !t.completed);
+      }
+    }
+
+    if (!tasksSortField) return filtered;
+    return filtered.sort((a, b) => {
       let valA = a[tasksSortField];
       let valB = b[tasksSortField];
 
@@ -1995,8 +2026,34 @@ export default function App() {
   };
 
   const getSortedBacklog = () => {
-    if (!backlogSortField) return dbState.backlog;
-    return [...dbState.backlog].sort((a, b) => {
+    let filtered = [...dbState.backlog];
+
+    // Apply search filter (match description or ownerName)
+    if (taskSearchQuery.trim() !== "") {
+      const q = taskSearchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (b) =>
+          (b.description && b.description.toLowerCase().includes(q)) ||
+          (b.ownerName && b.ownerName.toLowerCase().includes(q))
+      );
+    }
+
+    // Apply priority filter
+    if (taskPriorityFilter !== "All") {
+      filtered = filtered.filter((b) => b.priority === taskPriorityFilter);
+    }
+
+    // Apply status filter
+    if (taskStatusFilter !== "All") {
+      if (taskStatusFilter === "Completed") {
+        filtered = filtered.filter((b) => b.completed);
+      } else if (taskStatusFilter === "Active") {
+        filtered = filtered.filter((b) => !b.completed);
+      }
+    }
+
+    if (!backlogSortField) return filtered;
+    return filtered.sort((a, b) => {
       let valA = a[backlogSortField];
       let valB = b[backlogSortField];
 
@@ -2110,6 +2167,340 @@ export default function App() {
     }
     
     return dateString;
+  };
+
+  const handleExportCSV = () => {
+    const activeTasks = dbState.tasks;
+    const backlogTasks = dbState.backlog;
+    const workspaceName = workspaces.find(w => w.id === currentSelectedWorkspaceId)?.name || "Primary Shift Space";
+
+    let csvContent = "";
+    // Header Info
+    csvContent += `"Shift Handover Report - ${workspaceName}"\n`;
+    csvContent += `"Export Date","${new Date().toLocaleDateString()}"\n\n`;
+
+    // Active Tasks Section
+    csvContent += `"ACTIVE HANDOVER CYCLE TASKS"\n`;
+    csvContent += `"Order","Description","Assignee","Priority","Due Date","Status"\n`;
+    activeTasks.forEach((task, index) => {
+      const desc = (task.description || "").replace(/"/g, '""');
+      const owner = (task.ownerName || "").replace(/"/g, '""');
+      const priority = task.priority || "Medium";
+      const due = formatDueDate(task.dueDate);
+      const status = task.completed ? "Completed" : "Active / Pending";
+      csvContent += `${index + 1},"${desc}","${owner}","${priority}","${due}","${status}"\n`;
+    });
+
+    csvContent += `\n`;
+
+    // Backlog/Aging Queue Tasks Section
+    csvContent += `"BACKLOG & AGING LOG TASKS"\n`;
+    csvContent += `"Order","Description","Assignee","Priority","Entry Date","Status"\n`;
+    backlogTasks.forEach((item, index) => {
+      const desc = (item.description || "").replace(/"/g, '""');
+      const owner = (item.ownerName || "").replace(/"/g, '""');
+      const priority = item.priority || "Medium";
+      const entry = formatDueDate(item.backlogDate);
+      const status = item.completed ? "Resolved" : "Open / Aging";
+      csvContent += `${index + 1},"${desc}","${owner}","${priority}","${entry}","${status}"\n`;
+    });
+
+    // Create Download Blob
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${workspaceName.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_handover_report.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    addNotification("CSV file successfully exported!", "success");
+  };
+
+  const handleExportPDF = () => {
+    const activeTasks = dbState.tasks;
+    const backlogTasks = dbState.backlog;
+    const workspaceName = workspaces.find(w => w.id === currentSelectedWorkspaceId)?.name || "Primary Shift Space";
+
+    // Build styled HTML report
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Shift Handover Report - ${workspaceName}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+          body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            color: #1e293b;
+            line-height: 1.5;
+            padding: 40px;
+            margin: 0;
+            background: #ffffff;
+          }
+          .header {
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+          }
+          .title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0;
+            letter-spacing: -0.025em;
+          }
+          .subtitle {
+            font-size: 14px;
+            color: #64748b;
+            margin: 4px 0 0 0;
+          }
+          .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 35px;
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+          }
+          .meta-item {
+            display: flex;
+            flex-direction: column;
+          }
+          .meta-label {
+            font-size: 10px;
+            font-weight: bold;
+            color: #475569;
+            text-transform: uppercase;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 4px;
+          }
+          .meta-val {
+            font-size: 13px;
+            font-weight: 600;
+            color: #0f172a;
+          }
+          h2 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            border-left: 4px solid #4f46e5;
+            padding-left: 10px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+          }
+          th {
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 2px solid #cbd5e1;
+          }
+          td {
+            padding: 11px 12px;
+            font-size: 12px;
+            border-bottom: 1px solid #e2e8f0;
+          }
+          tr:last-child td {
+            border-bottom: none;
+          }
+          .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 10px;
+            font-weight: bold;
+          }
+          .badge-high {
+            background: #fef2f2;
+            color: #ef4444;
+            border: 1px solid #fee2e2;
+          }
+          .badge-medium {
+            background: #fffbeb;
+            color: #d97706;
+            border: 1px solid #fef3c7;
+          }
+          .badge-low {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #dcfce7;
+          }
+          .badge-pending {
+            background: #eff6ff;
+            color: #2563eb;
+            border: 1px solid #dbeafe;
+          }
+          .badge-completed {
+            background: #ecfdf5;
+            color: #10b981;
+            border: 1px solid #d1fae5;
+          }
+          .footer {
+            margin-top: 50px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 15px;
+            font-size: 10px;
+            color: #94a3b8;
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+          }
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <h1 class="title">Shift Handover Operations Report</h1>
+            <p class="subtitle">Workspace: ${workspaceName}</p>
+          </div>
+          <div style="text-align: right">
+            <p style="margin: 0; font-size: 12px; font-weight: bold; color: #4f46e5;">CONFIDENTIAL</p>
+            <p style="margin: 0; font-size: 10px; color: #94a3b8; font-family: 'JetBrains Mono', monospace;">Generated: ${new Date().toLocaleString()}</p>
+          </div>
+        </div>
+
+        <div class="meta-grid">
+          <div class="meta-item">
+            <span class="meta-label">Workspace Name</span>
+            <span class="meta-val">${workspaceName}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Active Cycle Completeness</span>
+            <span class="meta-val">${percentComplete}% (${completedCount}/${totalTasksCount} tasks signed)</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Backlog Length</span>
+            <span class="meta-val">${backlogTasks.length} open items</span>
+          </div>
+        </div>
+
+        <h2>Active Handover Cycle Tasks</h2>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 5%">#</th>
+              <th style="width: 45%">Task Description</th>
+              <th style="width: 15%">Assignee</th>
+              <th style="width: 12%">Priority</th>
+              <th style="width: 13%">Due Date</th>
+              <th style="width: 10%; text-align: center;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${activeTasks.length === 0 ? `
+              <tr>
+                <td colspan="6" style="text-align: center; color: #94a3b8; padding: 24px;">No active handover cycle tasks present.</td>
+              </tr>
+            ` : activeTasks.map((t, idx) => `
+              <tr>
+                <td>${idx + 1}</td>
+                <td style="font-weight: 500;">${t.description}</td>
+                <td>${t.ownerName}</td>
+                <td>
+                  <span class="badge badge-${t.priority.toLowerCase()}">${t.priority}</span>
+                </td>
+                <td style="font-family: 'JetBrains Mono', monospace;">${formatDueDate(t.dueDate)}</td>
+                <td style="text-align: center;">
+                  <span class="badge ${t.completed ? 'badge-completed' : 'badge-pending'}">
+                    ${t.completed ? 'Sign-Off' : 'Pending'}
+                  </span>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <h2>Backlog & Aging Tasks</h2>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 5%">#</th>
+              <th style="width: 45%">Task Description</th>
+              <th style="width: 15%">Assignee</th>
+              <th style="width: 12%">Priority</th>
+              <th style="width: 13%">Entry Date</th>
+              <th style="width: 10%; text-align: center;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${backlogTasks.length === 0 ? `
+              <tr>
+                <td colspan="6" style="text-align: center; color: #94a3b8; padding: 24px;">No backlog/aging items registered.</td>
+              </tr>
+            ` : backlogTasks.map((b, idx) => `
+              <tr>
+                <td>${idx + 1}</td>
+                <td style="font-weight: 500;">${b.description}</td>
+                <td>${b.ownerName}</td>
+                <td>
+                  <span class="badge badge-${b.priority.toLowerCase()}">${b.priority}</span>
+                </td>
+                <td style="font-family: 'JetBrains Mono', monospace;">${formatDueDate(b.backlogDate)}</td>
+                <td style="text-align: center;">
+                  <span class="badge ${b.completed ? 'badge-completed' : 'badge-pending'}">
+                    ${b.completed ? 'Resolved' : 'Aging'}
+                  </span>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          Operations Handover Manager Platform &copy; ${new Date().getFullYear()}. Printed using native high-fidelity PDF driver.
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Create a hidden iframe
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0px";
+    iframe.style.height = "0px";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document || iframe.contentDocument;
+    if (doc) {
+      doc.open();
+      doc.write(html);
+      doc.close();
+
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+      }, 500);
+
+      addNotification("Preparing PDF print wizard...", "success");
+    } else {
+      addNotification("Unable to generate PDF helper.", "warning");
+    }
   };
 
   // State modifier wrappers to handle both demo state or firebase writes
@@ -4788,6 +5179,86 @@ service cloud.firestore {
 
               {/* Task table / Card layout */}
               <div className={`p-4 ${activeTheme.mutedBg}`}>
+                
+                {/* Handover Operations Toolbar (Search, Filter, Export Actions) */}
+                <div className="mb-4 p-3 rounded-lg border border-slate-200/50 dark:border-slate-800/40 bg-white/60 dark:bg-slate-900/60 flex flex-col xl:flex-row items-center justify-between gap-4">
+                  {/* Search & Filter Group */}
+                  <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
+                    {/* Search Description/PIC */}
+                    <div className="relative w-full sm:w-64">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 opacity-60 pointer-events-none text-xs">
+                        🔍
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="Search tasks, backlog or PIC..."
+                        value={taskSearchQuery}
+                        onChange={(e) => setTaskSearchQuery(e.target.value)}
+                        className={`w-full pl-9 pr-8 py-1.5 text-xs rounded-lg border ${activeTheme.cardBorder} ${activeTheme.cardBg} ${activeTheme.cardTitleText} placeholder-slate-400 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 transition-all`}
+                      />
+                      {taskSearchQuery && (
+                        <button
+                          onClick={() => setTaskSearchQuery("")}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-605 font-bold text-xs"
+                          type="button"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Priority Filter */}
+                    <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                      <span className={`text-[11px] font-mono ${activeTheme.cardSubText} shrink-0`}>Priority:</span>
+                      <select
+                        value={taskPriorityFilter}
+                        onChange={(e) => setTaskPriorityFilter(e.target.value as any)}
+                        className={`text-xs px-2 px-y py-1 rounded-md border ${activeTheme.cardBorder} ${activeTheme.cardBg} ${activeTheme.cardTitleText} cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-indigo-500`}
+                      >
+                        <option value="All">All Priorities</option>
+                        <option value="High">🔴 High</option>
+                        <option value="Medium">🟡 Medium</option>
+                        <option value="Low">🟢 Low</option>
+                      </select>
+                    </div>
+
+                    {/* Status Filter */}
+                    <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                      <span className={`text-[11px] font-mono ${activeTheme.cardSubText} shrink-0`}>Status:</span>
+                      <select
+                        value={taskStatusFilter}
+                        onChange={(e) => setTaskStatusFilter(e.target.value as any)}
+                        className={`text-xs px-2 py-1 rounded-md border ${activeTheme.cardBorder} ${activeTheme.cardBg} ${activeTheme.cardTitleText} cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-indigo-500`}
+                      >
+                        <option value="All">All Statuses</option>
+                        <option value="Active">Pending</option>
+                        <option value="Completed">Sign-Off</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Export Toolkit */}
+                  <div className="flex items-center gap-2.5 w-full xl:w-auto justify-end border-t xl:border-t-0 border-slate-205/30 dark:border-slate-800/20 pt-3 xl:pt-0">
+                    <span className={`text-[11px] font-mono ${activeTheme.cardSubText}`}>Export Sheet:</span>
+                    <button
+                      type="button"
+                      onClick={handleExportCSV}
+                      className="px-3 py-1.5 hover:scale-[1.01] active:scale-[0.99] bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-slate-300 border border-slate-300/60 dark:border-slate-700 rounded-lg text-xs font-bold font-mono flex items-center gap-1.5 shadow-3xs transition-all cursor-pointer"
+                      title="Export all cycle and backlog tasks to generic CSV spreadsheet"
+                    >
+                      <span>📥</span> CSV File
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExportPDF}
+                      className="px-3 py-1.5 hover:scale-[1.01] active:scale-[0.99] bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold font-mono flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                      title="Generate executive PDF document using browser high-fidelity engine"
+                    >
+                      <span>📄</span> PDF Report
+                    </button>
+                  </div>
+                </div>
+
                 <div className={`overflow-x-auto border ${activeTheme.cardBorder} rounded-lg`}>
                                   <table className={`w-full text-left text-xs ${activeTheme.cardBg} border-collapse`}>
                     <thead>
