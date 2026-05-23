@@ -27,10 +27,7 @@ import {
   Bell,
   BellRing,
   Settings,
-  GripVertical,
-  Download,
-  FileText,
-  Printer
+  GripVertical
 } from "lucide-react";
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
@@ -5124,7 +5121,7 @@ service cloud.firestore {
                   <div>
                     <h3 className={`text-sm font-bold font-display ${activeTheme.cardTitleText} flex flex-col xl:flex-row xl:items-center gap-2`}>
                       <span>Active Handover Cycle Tasks</span>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap gap-1.5 items-center">
                         <button
                           type="button"
                           onClick={() => {
@@ -5155,6 +5152,27 @@ service cloud.firestore {
                           <Copy className="w-2.5 h-2.5" />
                           Carry Over from other Handover
                         </button>
+
+                        {/* Divider */}
+                        <span className="hidden md:inline-block h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
+
+                        {/* Consolidated Export Buttons */}
+                        <button
+                          type="button"
+                          onClick={handleExportCSV}
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-755 dark:text-slate-300 border border-slate-300/40 dark:border-slate-700 rounded text-[10px] font-bold font-mono inline-flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                          title="Export all cycle and backlog tasks to generic CSV spreadsheet"
+                        >
+                          <span>📥</span> CSV File
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleExportPDF}
+                          className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 hover:scale-[1.02] active:scale-[0.98] text-white rounded text-[10px] font-bold font-mono inline-flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                          title="Generate executive PDF document using browser high-fidelity engine"
+                        >
+                          <span>📄</span> PDF Report
+                        </button>
                       </div>
                     </h3>
                     <p className={`text-[11px] ${activeTheme.cardSubText} leading-none mt-1.5 sm:mt-1`}>
@@ -5183,88 +5201,60 @@ service cloud.firestore {
               {/* Task table / Card layout */}
               <div className={`p-4 ${activeTheme.mutedBg}`}>
                 
-                {/* Handover Operations Toolbar (Search, Filter, Export Actions) */}
-                <div className="mb-4 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 shadow-3xs">
-                  {/* Search & Filter Group */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
-                    {/* Search Description/PIC */}
-                    <div className="relative w-full sm:w-64">
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 opacity-70 pointer-events-none text-xs">
-                        🔍
-                      </span>
-                      <input
-                        type="text"
-                        placeholder="Search tasks, backlog or PIC..."
-                        value={taskSearchQuery}
-                        onChange={(e) => setTaskSearchQuery(e.target.value)}
-                        className={`w-full pl-9 pr-8 py-1.5 text-xs rounded-lg border ${activeTheme.cardBorder} ${activeTheme.cardBg} ${activeTheme.cardTitleText} placeholder-slate-400 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 transition-all`}
-                      />
-                      {taskSearchQuery && (
-                        <button
-                          onClick={() => setTaskSearchQuery("")}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 font-bold text-xs"
-                          type="button"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Filter Elements - Side by Side on Mobile */}
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                      {/* Priority Filter */}
-                      <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
-                        <span className={`text-[10px] font-mono uppercase tracking-wider ${activeTheme.cardSubText} shrink-0`}>Priority:</span>
-                        <select
-                          value={taskPriorityFilter}
-                          onChange={(e) => setTaskPriorityFilter(e.target.value as any)}
-                          className={`text-xs px-2 py-1 w-full rounded-md border ${activeTheme.cardBorder} ${activeTheme.cardBg} ${activeTheme.cardTitleText} cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-indigo-500`}
-                        >
-                          <option value="All">All Priorities</option>
-                          <option value="High">🔴 High</option>
-                          <option value="Medium">🟡 Medium</option>
-                          <option value="Low">🟢 Low</option>
-                        </select>
-                      </div>
-
-                      {/* Status Filter */}
-                      <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
-                        <span className={`text-[10px] font-mono uppercase tracking-wider ${activeTheme.cardSubText} shrink-0`}>Status:</span>
-                        <select
-                          value={taskStatusFilter}
-                          onChange={(e) => setTaskStatusFilter(e.target.value as any)}
-                          className={`text-xs px-2 py-1 w-full rounded-md border ${activeTheme.cardBorder} ${activeTheme.cardBg} ${activeTheme.cardTitleText} cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-indigo-500`}
-                        >
-                          <option value="All">All Statuses</option>
-                          <option value="Active">Pending</option>
-                          <option value="Completed">Sign-Off</option>
-                        </select>
-                      </div>
-                    </div>
+                {/* Handover Operations Toolbar (Search & Filter Only) */}
+                <div className="mb-4 p-3 rounded-lg border border-slate-200/50 dark:border-slate-800/40 bg-white/60 dark:bg-slate-900/60 flex flex-col md:flex-row items-center justify-between gap-4">
+                  {/* Search Description/PIC */}
+                  <div className="relative w-full md:w-72">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 opacity-60 pointer-events-none text-xs">
+                      🔍
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Search tasks, backlog or PIC..."
+                      value={taskSearchQuery}
+                      onChange={(e) => setTaskSearchQuery(e.target.value)}
+                      className={`w-full pl-9 pr-8 py-1.5 text-xs rounded-lg border ${activeTheme.cardBorder} ${activeTheme.cardBg} ${activeTheme.cardTitleText} placeholder-slate-400 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 transition-all`}
+                    />
+                    {taskSearchQuery && (
+                      <button
+                        onClick={() => setTaskSearchQuery("")}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 font-bold text-xs"
+                        type="button"
+                      >
+                        ×
+                      </button>
+                    )}
                   </div>
 
-                  {/* Export Toolkit */}
-                  <div className="flex items-center gap-2.5 w-full lg:w-auto justify-end border-t lg:border-t-0 border-slate-200/30 dark:border-slate-800/20 pt-3 lg:pt-0">
-                    <span className={`text-[10px] font-mono uppercase tracking-wider ${activeTheme.cardSubText} hidden sm:inline`}>Export:</span>
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                      <button
-                        type="button"
-                        onClick={handleExportCSV}
-                        className="flex-1 sm:flex-none px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-slate-300 border border-slate-350/60 dark:border-slate-700 rounded-lg text-xs font-semibold font-mono flex items-center justify-center gap-1.5 shadow-3xs transition-all cursor-pointer"
-                        title="Export all cycle and backlog tasks to generic CSV spreadsheet"
+                  {/* Filter Group */}
+                  <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
+                    {/* Priority Filter */}
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[11px] font-mono ${activeTheme.cardSubText} shrink-0`}>Priority:</span>
+                      <select
+                        value={taskPriorityFilter}
+                        onChange={(e) => setTaskPriorityFilter(e.target.value as any)}
+                        className={`text-xs px-2 py-1 rounded-md border ${activeTheme.cardBorder} ${activeTheme.cardBg} ${activeTheme.cardTitleText} cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-indigo-500`}
                       >
-                        <Download className="w-3.5 h-3.5 shrink-0 opacity-80" />
-                        <span>CSV Sheet</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleExportPDF}
-                        className="flex-1 sm:flex-none px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold font-mono flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
-                        title="Generate executive PDF document using browser high-fidelity engine"
+                        <option value="All">All Priorities</option>
+                        <option value="High">🔴 High</option>
+                        <option value="Medium">🟡 Medium</option>
+                        <option value="Low">🟢 Low</option>
+                      </select>
+                    </div>
+
+                    {/* Status Filter */}
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[11px] font-mono ${activeTheme.cardSubText} shrink-0`}>Status:</span>
+                      <select
+                        value={taskStatusFilter}
+                        onChange={(e) => setTaskStatusFilter(e.target.value as any)}
+                        className={`text-xs px-2 py-1 rounded-md border ${activeTheme.cardBorder} ${activeTheme.cardBg} ${activeTheme.cardTitleText} cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-indigo-500`}
                       >
-                        <Printer className="w-3.5 h-3.5 shrink-0 opacity-95" />
-                        <span>PDF Report</span>
-                      </button>
+                        <option value="All">All Statuses</option>
+                        <option value="Active">Pending</option>
+                        <option value="Completed">Sign-Off</option>
+                      </select>
                     </div>
                   </div>
                 </div>
