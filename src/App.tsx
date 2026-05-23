@@ -26,7 +26,8 @@ import {
   Info,
   Bell,
   BellRing,
-  Settings
+  Settings,
+  GripVertical
 } from "lucide-react";
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
@@ -708,9 +709,10 @@ export default function App() {
 
   const [firestoreInstance, setFirestoreInstance] = useState<any>(null);
 
-  // Sorting state for Active Tasks and Backlog Tasks
+  // Sorting and Dragging state for Active Tasks and Backlog Tasks
   const [tasksSortField, setTasksSortField] = useState<"completed" | "description" | "ownerName" | "priority" | "dueDate" | null>(null);
   const [tasksSortDirection, setTasksSortDirection] = useState<"asc" | "desc">("asc");
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
 
   const [backlogSortField, setBacklogSortField] = useState<"completed" | "description" | "ownerName" | "priority" | "backlogDate" | null>(null);
   const [backlogSortDirection, setBacklogSortDirection] = useState<"asc" | "desc">("asc");
@@ -1921,6 +1923,39 @@ export default function App() {
     }
   };
 
+  const handleDragStart = (e: React.DragEvent, taskId: string) => {
+    if (tasksSortField !== null) {
+      setTasksSortField(null);
+    }
+    setDraggedTaskId(taskId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", taskId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!draggedTaskId || draggedTaskId === targetId) return;
+
+    updateWorkspaceState((prev) => {
+      const nextTasks = [...prev.tasks];
+      const draggedIdx = nextTasks.findIndex(t => t.id === draggedTaskId);
+      const targetIdx = nextTasks.findIndex(t => t.id === targetId);
+
+      if (draggedIdx !== -1 && targetIdx !== -1) {
+        const [removed] = nextTasks.splice(draggedIdx, 1);
+        nextTasks.splice(targetIdx, 0, removed);
+      }
+      return {
+        ...prev,
+        tasks: nextTasks
+      };
+    });
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTaskId(null);
+  };
+
   const handleBacklogSort = (field: "completed" | "description" | "ownerName" | "priority" | "backlogDate") => {
     if (backlogSortField === field) {
       if (backlogSortDirection === "asc") {
@@ -2021,6 +2056,60 @@ export default function App() {
     const diffTime = CURRENT_DATE_VAL.getTime() - start.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     return diffDays < 0 ? 0 : diffDays;
+  };
+
+  // Helper: format date to DD-MMM-YYYY (e.g., 05 May 2026)
+  const formatDueDate = (dateString: string | undefined | null): string => {
+    if (!dateString) return "-";
+    
+    // Parse standard YYYY-MM-DD
+    const parts = dateString.split("-");
+    if (parts.length === 3) {
+      const year = parts[0];
+      const monthIndex = parseInt(parts[1], 10) - 1;
+      const dayStr = parts[2].split("T")[0]; // remove time parts if any
+      const day = parseInt(dayStr, 10);
+      
+      const months = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+      ];
+      
+      if (monthIndex >= 0 && monthIndex < 12 && !isNaN(day)) {
+        const paddedDay = String(day).padStart(2, '0');
+        const monthName = months[monthIndex];
+        return `${paddedDay} ${monthName} ${year}`;
+      }
+    }
+    
+    // If it's already in the format "05 May 2026", return it directly
+    const spaceRegex = /^\d{2}\s[A-Za-z]{3}\s\d{4}$/;
+    if (spaceRegex.test(dateString)) {
+      return dateString;
+    }
+    
+    const dashRegex = /^\d{2}-[A-Za-z]{3}-\d{4}$/;
+    if (dashRegex.test(dateString)) {
+      return dateString.replace(/-/g, " ");
+    }
+
+    try {
+      const targetDate = new Date(dateString);
+      if (!isNaN(targetDate.getTime())) {
+        const day = String(targetDate.getDate()).padStart(2, '0');
+        const months = [
+          "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        ];
+        const monthName = months[targetDate.getMonth()];
+        const year = targetDate.getFullYear();
+        return `${day} ${monthName} ${year}`;
+      }
+    } catch (e) {
+      // ignore helper error
+    }
+    
+    return dateString;
   };
 
   // State modifier wrappers to handle both demo state or firebase writes
@@ -2248,12 +2337,13 @@ export default function App() {
                   referenceDateChange.setHours(0,0,0,0);
                   const diffTime = due.getTime() - referenceDateChange.getTime();
                   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                  const formattedD = formatDueDate(dueDateStr);
                   if (diffDays === 0) {
-                    dueLabel = `Due: ${dueDateStr} (Due Today)`;
+                    dueLabel = `Due: ${formattedD} (Due Today)`;
                   } else if (diffDays < 0) {
-                    dueLabel = `Due: ${dueDateStr} (Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? "s" : ""})`;
+                    dueLabel = `Due: ${formattedD} (Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? "s" : ""})`;
                   } else {
-                    dueLabel = `Due: ${dueDateStr} (Due in ${diffDays} day${diffDays > 1 ? "s" : ""})`;
+                    dueLabel = `Due: ${formattedD} (Due in ${diffDays} day${diffDays > 1 ? "s" : ""})`;
                   }
                 }
                 return `[${t.completed ? "✓" : " "}] ${titleStr} (Assignee: ${ownerStr}, ${dueLabel})`;
@@ -2890,7 +2980,7 @@ export default function App() {
                               <span className="px-1 py-0.2 rounded bg-slate-100 border border-slate-200">Owner: {t.ownerName}</span>
                               <span className={`px-1 py-0.2 rounded ${t.priority === 'High' ? 'bg-rose-50 text-rose-500' : 'bg-slate-100'}`}>{t.priority}</span>
                               {t.dueDate && (
-                                <span className="text-slate-400">Due: {t.dueDate}</span>
+                                <span className="text-slate-400">Due: {formatDueDate(t.dueDate)}</span>
                               )}
                             </div>
                           </div>
@@ -3381,29 +3471,29 @@ export default function App() {
             </div>
 
             {/* Elegant Tab Switcher Strip */}
-            <div className="flex flex-col sm:flex-row border-b border-slate-200/60 dark:border-slate-800 pb-1.5 gap-2 select-none">
+            <div className="flex flex-col sm:flex-row border-b border-slate-200/60 dark:border-slate-800 pb-2 gap-2 select-none">
               <button
                 type="button"
                 onClick={() => setActiveSettingsTab("input")}
-                className={`px-4.5 py-2 rounded-lg text-xs font-bold font-sans transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                className={`px-4.5 py-2.5 rounded-lg text-xs font-bold font-sans transition-all flex items-center justify-center gap-2 cursor-pointer ${
                   activeSettingsTab === "input"
-                    ? "bg-indigo-650 text-white shadow-xs"
-                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-350 dark:hover:bg-slate-750"
+                    ? "bg-indigo-600 text-white shadow-md"
+                    : "bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-750"
                 }`}
               >
-                📥 Input & Customization <span className="opacity-70 text-[10px] font-normal font-sans">(Roster, Tema, Notifikasi)</span>
+                📥 Input & Customization <span className={`${activeSettingsTab === "input" ? "text-indigo-100" : "text-slate-500 dark:text-slate-400"} text-[10px] font-normal font-sans`}>(Roster, Themes & Notification)</span>
               </button>
               
               <button
                 type="button"
                 onClick={() => setActiveSettingsTab("system")}
-                className={`px-4.5 py-2 rounded-lg text-xs font-bold font-sans transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                className={`px-4.5 py-2.5 rounded-lg text-xs font-bold font-sans transition-all flex items-center justify-center gap-2 cursor-pointer ${
                   activeSettingsTab === "system"
-                    ? "bg-indigo-650 text-white shadow-xs"
-                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-350 dark:hover:bg-slate-750"
+                    ? "bg-indigo-600 text-white shadow-md"
+                    : "bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-750"
                 }`}
               >
-                🎛️ System Settings & Integrations <span className="opacity-70 text-[10px] font-normal font-sans">(Firebase, SMTP, Sandbox)</span>
+                🎛️ System Settings & Integrations <span className={`${activeSettingsTab === "system" ? "text-indigo-100" : "text-slate-500 dark:text-slate-400"} text-[10px] font-normal font-sans`}>(Firebase, SMTP, Sandbox)</span>
               </button>
             </div>
 
@@ -4018,12 +4108,12 @@ service cloud.firestore {
                           overdueTasks.forEach(task => {
                             dispatchNotification({
                               event: "overdueAlert",
-                              message: `ALERT ESC-11: Checklist item "${task.description}" assigned to operator ${task.ownerName} is past due date (${task.dueDate})!`,
+                              message: `ALERT ESC-11: Checklist item "${task.description}" assigned to operator ${task.ownerName} is past due date (${formatDueDate(task.dueDate)})!`,
                               type: "warning",
                               details: {
                                 taskName: task.description,
                                 assignee: task.ownerName,
-                                dueDate: task.dueDate,
+                                dueDate: formatDueDate(task.dueDate),
                                 spaceName: workspaces.find(w => w.id === currentSelectedWorkspaceId)?.name || "Primary Shift Space"
                               }
                             });
@@ -4699,9 +4789,10 @@ service cloud.firestore {
               {/* Task table / Card layout */}
               <div className={`p-4 ${activeTheme.mutedBg}`}>
                 <div className={`overflow-x-auto border ${activeTheme.cardBorder} rounded-lg`}>
-                  <table className={`w-full text-left text-xs ${activeTheme.cardBg} border-collapse`}>
+                                  <table className={`w-full text-left text-xs ${activeTheme.cardBg} border-collapse`}>
                     <thead>
                       <tr className={`${activeTheme.mutedBg} ${activeTheme.cardSubText} border-b ${activeTheme.cardBorder} font-mono text-[10px] uppercase font-bold select-none`}>
+                        <th className="p-3 w-8 text-center text-slate-400">Drag</th>
                         <th className={`p-3 w-16 text-center cursor-pointer hover:opacity-85 transition-opacity ${activeTheme.cardBorder}`} onClick={() => handleTasksSort("completed")}>
                           <div className="flex items-center justify-center gap-0.5">
                             Done {renderSortIcon("completed", tasksSortField, tasksSortDirection)}
@@ -4733,7 +4824,7 @@ service cloud.firestore {
                     <tbody className={`divide-y ${activeTheme.cardBorder}`}>
                       {getSortedTasks().length === 0 ? (
                         <tr>
-                          <td colSpan={6} className={`p-8 text-center ${activeTheme.cardSubText} ${activeTheme.mutedBg}`}>
+                          <td colSpan={7} className={`p-8 text-center ${activeTheme.cardSubText} ${activeTheme.mutedBg}`}>
                             <CheckCircle2 className="w-8 h-8 mx-auto text-slate-350 mb-2 opacity-60" />
                             <p className="font-semibold text-xs">No active tasks in current rotation.</p>
                             <p className="text-[10px] opacity-75 mt-0.5">Use the prompt box beneath to queue transition tasks.</p>
@@ -4746,10 +4837,24 @@ service cloud.firestore {
                           return (
                             <tr 
                               key={task.id} 
-                              className={`hover:opacity-95 transition-opacity ${
-                                task.completed ? "bg-emerald-500/5 text-slate-400 opacity-80" : ""
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, task.id)}
+                              onDragOver={(e) => handleDragOver(e, task.id)}
+                              onDragEnd={handleDragEnd}
+                              className={`transition-all duration-150 ${
+                                draggedTaskId === task.id 
+                                  ? "opacity-35 bg-indigo-500/10 cursor-grabbing" 
+                                  : "hover:bg-slate-500/5"
+                              } ${
+                                task.completed ? "bg-emerald-500/5 text-slate-405 opacity-80" : ""
                               } ${activeTheme.mutedBg}/10 border-b ${activeTheme.cardBorder}`}
                             >
+                              <td className="p-3 text-center align-middle touch-none select-none">
+                                <div className="flex items-center justify-center text-slate-400 dark:text-slate-600 hover:text-indigo-500 cursor-grab active:cursor-grabbing">
+                                  <GripVertical className="w-4 h-4" />
+                                </div>
+                              </td>
+
                               <td className="p-3 text-center">
                                 <motion.button
                                   whileTap={{ scale: 0.9 }}
@@ -4815,7 +4920,7 @@ service cloud.firestore {
                                     </span>
                                   )}
                                   <span className={`text-[9px] font-mono ${activeTheme.cardSubText} block`}>
-                                    Due: {task.dueDate}
+                                    Due: {formatDueDate(task.dueDate)}
                                   </span>
                                 </div>
                               </td>
@@ -5668,7 +5773,7 @@ service cloud.firestore {
                                         <span className={`leading-snug ${t.completed ? "line-through opacity-60" : ""}`}>
                                           <strong>{t.description || t.title}</strong>{' '}
                                           <span className="text-[8px] font-mono text-slate-400">({t.priority}, PIC: {t.ownerName})</span>
-                                          {t.dueDate && <span className="text-[8px] font-mono text-indigo-500 ml-1 bg-indigo-50/50 dark:bg-indigo-950/30 px-1 rounded">Due: {t.dueDate}</span>}
+                                          {t.dueDate && <span className="text-[8px] font-mono text-indigo-500 ml-1 bg-indigo-50/50 dark:bg-indigo-950/30 px-1 rounded">Due: {formatDueDate(t.dueDate)}</span>}
                                         </span>
                                       </li>
                                     ))}
